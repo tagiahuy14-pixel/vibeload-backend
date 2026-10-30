@@ -1,13 +1,38 @@
 import threading
 import time
 import uuid
+import math
 from pathlib import Path
 from typing import Dict, Optional
 from ..schemas import JobStatus, FileInfo, DownloadJobResponse
 
 
+def _finite_number(value, integer=False):
+    """yt-dlp HLS estimates can be fractional, unknown or non-finite."""
+    if isinstance(value, bool):
+        return 0 if integer else 0.0
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        number = 0.0
+    if not math.isfinite(number):
+        number = 0.0
+    number = max(0.0, number)
+    return int(number) if integer else number
+
+
+def _job_locked(method):
+    from functools import wraps
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._state_lock:
+            return method(self, *args, **kwargs)
+    return wrapper
+
+
 class DownloadJob:
     def __init__(self, job_id: str, client_ip: str, url: str):
+        self._state_lock = threading.RLock()
         self.id = job_id
         self.client_ip = client_ip
         self.url = url
@@ -24,17 +49,23 @@ class DownloadJob:
         self.created_at = time.time()
         self.updated_at = time.time()
 
+    @_job_locked
     def update_progress(self, percent: float, speed: float, downloaded: int, total: int, eta: int):
+        """Normalize raw extractor values before exposing a job snapshot.
+
+        The API schema uses integer ETA; unknown/invalid ETA is represented by 0.
+        """
         if self.is_cancelled:
             raise RuntimeError("DOWNLOAD_CANCELLED")
         self.status = JobStatus.DOWNLOADING
-        self.progress_percent = round(percent, 1)
-        self.speed_bytes_sec = speed
-        self.downloaded_bytes = downloaded
-        self.total_bytes = total
-        self.eta_seconds = eta
+        self.progress_percent = round(min(99.0, _finite_number(percent)), 1)
+        self.speed_bytes_sec = _finite_number(speed)
+        self.downloaded_bytes = _finite_number(downloaded, integer=True)
+        self.total_bytes = _finite_number(total, integer=True)
+        self.eta_seconds = _finite_number(eta, integer=True)
         self.updated_at = time.time()
 
+    @_job_locked
     def set_processing(self):
         if self.is_cancelled:
             raise RuntimeError("DOWNLOAD_CANCELLED")
@@ -42,25 +73,35 @@ class DownloadJob:
         self.progress_percent = 95.0
         self.updated_at = time.time()
 
+    @_job_locked
     def set_completed(self, file_path: Path, file_info: FileInfo):
         if self.is_cancelled:
             raise RuntimeError("DOWNLOAD_CANCELLED")
-        self.status = JobStatus.COMPLETED
         self.progress_percent = 100.0
         self.file_path = file_path
         self.file_info = file_info
+        self.downloaded_bytes = file_info.filesize
+        self.total_bytes = file_info.filesize
+        self.speed_bytes_sec = 0.0
+        self.eta_seconds = 0
+        self.status = JobStatus.COMPLETED
         self.updated_at = time.time()
 
+    @_job_locked
     def set_failed(self, error_message: str):
+        if self.is_cancelled:
+            return
         self.status = JobStatus.FAILED
         self.error = error_message
         self.updated_at = time.time()
 
+    @_job_locked
     def cancel(self):
         self.is_cancelled = True
         self.status = JobStatus.CANCELLED
         self.updated_at = time.time()
 
+    @_job_locked
     def to_response(self) -> DownloadJobResponse:
         return DownloadJobResponse(
             id=self.id,

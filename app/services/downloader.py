@@ -13,6 +13,7 @@ from ..storage import get_job_dir
 from ..workers.jobs import DownloadJob
 from .ffmpeg_service import verify_media_streams, convert_to_mp3, get_ffmpeg_path
 from .zip_service import create_photo_zip
+from .extractor_diagnostics import ExtractorLogger, classify_extractor_error
 from ..extractors.registry import clean_and_normalize_url, resolve_redirect_if_needed, registry
 
 
@@ -51,6 +52,8 @@ def run_download_job(job: DownloadJob, request: DownloadRequest):
         try:
             _handle_video_download(job, request, job_dir, url)
         except Exception as e:
+            if isinstance(e, yt_dlp.utils.DownloadError) and classify_extractor_error(e)[0] == 403:
+                raise  # Do not try another provider after an access/authentication denial.
             # Fallback for TikTok if yt-dlp was blocked or failed
             if ("tiktok.com" in url.lower() or "douyin.com" in url.lower()) and not job.is_cancelled:
                 tikwm_res = registry.tiktok_photo_extractor._extract_tikwm(url)
@@ -205,7 +208,9 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'format': 'bestaudio/best',
         'outtmpl': raw_output_tmpl,
         'quiet': True,
-        'no_warnings': True,
+        'no_warnings': False,
+        'logger': ExtractorLogger(),
+        'noprogress': True,
         'noplaylist': True,
         'max_filesize': settings.MAX_FILE_SIZE_MB * 1024 * 1024,
         'retries': 2,
@@ -292,7 +297,9 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'format': format_spec,
         'outtmpl': output_tmpl,
         'quiet': True,
-        'no_warnings': True,
+        'no_warnings': False,
+        'logger': ExtractorLogger(),
+        'noprogress': True,
         'noplaylist': True,
         'max_filesize': settings.MAX_FILE_SIZE_MB * 1024 * 1024,
         'retries': 2,

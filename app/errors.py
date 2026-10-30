@@ -1,14 +1,16 @@
 import logging
 import uuid
+from contextvars import ContextVar
 
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger("vibeload")
+request_id_context = ContextVar("vibeload_request_id", default="-")
 
 
-def error_response(request: Request, status: int, code: str, message: str):
+def error_response(request: Request, status: int, code: str, message: str, retryable=None):
     request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
     headers = {"X-Request-ID": request_id}
     from .config import settings
@@ -18,7 +20,7 @@ def error_response(request: Request, status: int, code: str, message: str):
     return JSONResponse(status_code=status, content={
         "success": False,
         "error": {"code": code, "message": message,
-                  "retryable": status in (429, 502, 503, 504), "requestId": request_id},
+                  "retryable": status in (429, 502, 503, 504) if retryable is None else retryable, "requestId": request_id},
     }, headers=headers)
 
 
@@ -26,12 +28,19 @@ def install_error_handlers(app):
     @app.middleware("http")
     async def request_id(request, call_next):
         request.state.request_id = str(uuid.uuid4())
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request.state.request_id
-        return response
+        context_token = request_id_context.set(request.state.request_id)
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-ID"] = request.state.request_id
+            return response
+        finally:
+            request_id_context.reset(context_token)
 
     @app.exception_handler(HTTPException)
     async def http_error(request, exc):
+        if isinstance(exc.detail, dict):
+            return error_response(request, exc.status_code, exc.detail.get("code", "REQUEST_FAILED"),
+                                  exc.detail.get("message", "Yêu cầu thất bại."), exc.detail.get("retryable"))
         codes = {400: "INVALID_REQUEST", 403: "ACCESS_DENIED", 404: "NOT_FOUND",
                  409: "JOB_NOT_READY", 413: "FILE_TOO_LARGE", 429: "RATE_LIMITED",
                  502: "MEDIA_EXTRACTION_FAILED", 503: "ENGINE_UNAVAILABLE", 504: "UPSTREAM_TIMEOUT"}

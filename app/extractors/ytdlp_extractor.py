@@ -3,6 +3,7 @@ import shutil
 from typing import Dict, Any, List, Optional
 import yt_dlp
 from .base import BaseExtractor
+from ..services.extractor_diagnostics import ExtractorLogger, classify_extractor_error, log_extractor_failure
 
 
 DEFAULT_HEADERS = {
@@ -29,7 +30,8 @@ class YtDlpExtractor(BaseExtractor):
         ffmpeg_loc = find_ffmpeg_location()
         ydl_opts = {
             'quiet': True,
-            'no_warnings': True,
+            'no_warnings': False,
+            'logger': ExtractorLogger(),
             'skip_download': True,
             'extract_flat': False,
             'socket_timeout': 20,
@@ -80,20 +82,14 @@ class YtDlpExtractor(BaseExtractor):
                     has_vcodec = vcodec != 'none' and vcodec is not None
                     has_acodec = acodec != 'none' and acodec is not None
 
-                    # Facebook / TikTok combined format normalization
-                    if fmt_id == 'hd' and height == 0:
-                        height = 720
-                    elif fmt_id == 'sd' and height == 0:
-                        height = 480
-
                     is_named_video = fmt_id in ('sd', 'hd', 'video')
                     is_video = has_vcodec or is_named_video
                     is_audio_only = has_acodec and not has_vcodec and not is_named_video
 
-                    if is_video and height > 0:
-                        res_label = f"{height}p"
+                    if is_video:
+                        res_label = f"{height}p" if height > 0 else f"{fmt_id} (chưa rõ độ phân giải)"
                         if fmt_id in ('sd', 'hd'):
-                            res_label = f"{fmt_id.upper()} ({height}p)"
+                            res_label = f"{fmt_id.upper()} ({height}p)" if height > 0 else f"{fmt_id.upper()} (chưa rõ độ phân giải)"
 
                         needs_merge = not has_acodec and fmt_id not in ('sd', 'hd') and ('tiktok' not in extractor)
 
@@ -106,8 +102,8 @@ class YtDlpExtractor(BaseExtractor):
                                 "width": width,
                                 "ext": "mp4",
                                 "filesize": filesize,
-                                "vcodec": vcodec,
-                                "acodec": acodec,
+                                "vcodec": fmt.get('vcodec'),
+                                "acodec": fmt.get('acodec'),
                                 "needs_merge": needs_merge
                             })
                         else:
@@ -153,12 +149,12 @@ class YtDlpExtractor(BaseExtractor):
                         last_fmt = candidate_fmts[-1]
                         vcodec = last_fmt.get('vcodec') or 'none'
                         acodec = last_fmt.get('acodec') or 'none'
-                        h = last_fmt.get('height') or 720
+                        h = last_fmt.get('height') or 0
                         video_options.append({
                             "format_id": str(last_fmt.get('format_id', 'best')),
-                            "resolution": f"{h}p (Mặc định)",
+                            "resolution": f"{h}p (Mặc định)" if h else "Mặc định (chưa rõ độ phân giải)",
                             "height": h,
-                            "width": last_fmt.get('width') or 1280,
+                            "width": last_fmt.get('width') or 0,
                             "ext": "mp4",
                             "filesize": last_fmt.get('filesize') or 0,
                             "vcodec": vcodec,
@@ -199,20 +195,12 @@ class YtDlpExtractor(BaseExtractor):
                     "error": None
                 }
         except yt_dlp.utils.DownloadError as e:
-            raw = str(e).lower()
-            status = 403 if any(s in raw for s in ("captcha", "sign in", "login", "private video", "drm", "http error 403", "bot")) else 404 if any(s in raw for s in ("404", "not found", "does not exist")) else 504 if "timed out" in raw else 502
-            return {"success": False, "status_code": status, "error": self._format_error(str(e), url)}
+            status, code, message, retryable = classify_extractor_error(e)
+            log_extractor_failure(code)
+            return {"success": False, "status_code": status, "error_code": code, "error": message, "retryable": retryable}
         except Exception as e:
-            return {"success": False, "error": f"Lỗi phân tích: {str(e)}"}
+            log_extractor_failure("INTERNAL_ERROR")
+            return {"success": False, "status_code": 500, "error_code": "INTERNAL_ERROR", "error": "Máy chủ gặp lỗi nội bộ khi phân tích nội dung.", "retryable": False}
 
     def _format_error(self, err: str, url: str) -> str:
-        err_lower = err.lower()
-        if "private video" in err_lower or "sign in" in err_lower or "login" in err_lower:
-            return "Nội dung này ở chế độ riêng tư hoặc yêu cầu đăng nhập."
-        if "not found" in err_lower or "404" in err_lower or "does not exist" in err_lower:
-            return "Bài viết hoặc video không tồn tại (có thể đã bị xóa)."
-        if "drm" in err_lower or "copyright" in err_lower:
-            return "Nội dung này được bảo vệ bản quyền (DRM), không thể tải."
-        if "bot" in err_lower or "captcha" in err_lower:
-            return "Nền tảng yêu cầu xác minh bảo mật (CAPTCHA). Vui lòng thử lại sau."
-        return "Không thể phân tích nội dung từ nguồn. Liên kết có thể hết hạn hoặc nền tảng tạm thời không phản hồi."
+        return classify_extractor_error(err)[2]

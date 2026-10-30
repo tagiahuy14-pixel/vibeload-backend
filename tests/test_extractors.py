@@ -31,3 +31,24 @@ def test_debug_environment_does_not_break_startup(monkeypatch):
     assert Settings().DEBUG is False
     monkeypatch.setenv("VIBELOAD_DEBUG", "true")
     assert Settings().DEBUG is True
+
+
+def test_facebook_sd_hd_do_not_invent_dimensions(monkeypatch):
+    from app.extractors.ytdlp_extractor import YtDlpExtractor
+    class Engine:
+        def __init__(self, options):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def extract_info(self, *args, **kwargs):
+            return {"title": "Sample", "extractor": "facebook", "formats": [
+                {"format_id": "sd", "ext": "mp4"}, {"format_id": "hd", "ext": "mp4"}]}
+    monkeypatch.setattr("app.extractors.ytdlp_extractor.yt_dlp.YoutubeDL", Engine)
+    result = YtDlpExtractor().analyze("https://www.facebook.com/watch/?v=fixture")
+    assert result["success"]
+    assert len(result["video_options"]) == 2
+    assert all(option["height"] == option["width"] == 0 for option in result["video_options"])
+    assert all("chưa rõ" in option["resolution"] for option in result["video_options"])
+    assert all(option["vcodec"] is None for option in result["video_options"])

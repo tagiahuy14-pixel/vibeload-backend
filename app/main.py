@@ -130,7 +130,9 @@ def analyze_media(req: AnalyzeRequest):
     if not result.get("success"):
         raise HTTPException(
             status_code=result.get("status_code", 502),
-            detail=result.get("error") or "Không thể phân tích phương tiện từ liên kết này."
+            detail={"code": result.get("error_code", "MEDIA_EXTRACTION_FAILED"),
+                    "message": result.get("error") or "Không thể phân tích phương tiện từ liên kết này.",
+                    "retryable": result.get("retryable")}
         )
 
     return AnalyzeResponse(
