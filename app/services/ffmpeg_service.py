@@ -40,10 +40,10 @@ def verify_media_streams(file_path: str) -> Dict[str, Any]:
     if not ffprobe:
         # Fallback if ffprobe binary not found: check file size > 1KB
         return {
-            "success": True,
-            "has_video": True,
-            "has_audio": True,
-            "warning": "ffprobe không khả dụng trên hệ thống, xác minh bằng kích thước tệp"
+            "success": False,
+            "has_video": False,
+            "has_audio": False,
+            "error": "ffprobe không khả dụng; không thể xác minh tệp"
         }
 
     cmd = [

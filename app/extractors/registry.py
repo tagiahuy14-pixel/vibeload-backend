@@ -4,6 +4,7 @@ import urllib.request
 from typing import Dict, Any
 from .tiktok_photos import TikTokPhotoExtractor
 from .ytdlp_extractor import YtDlpExtractor
+from ..security import safe_urlopen, validate_platform_url
 
 DEFAULT_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -40,11 +41,12 @@ def clean_and_normalize_url(raw_url: str) -> str:
 def resolve_redirect_if_needed(url: str) -> str:
     """Follow HTTP redirect for short links like fb.watch or facebook.com/share/."""
     url_lower = url.lower()
-    if "fb.watch" in url_lower or "facebook.com/share/" in url_lower:
+    host = (urllib.parse.urlparse(url).hostname or "").lower()
+    if host in ("fb.watch", "vt.tiktok.com", "vm.tiktok.com") or (host in ("facebook.com", "www.facebook.com") and "/share/" in url_lower):
         try:
             req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
-            with urllib.request.urlopen(req, timeout=6) as resp:
-                return resp.geturl()
+            with safe_urlopen(req, timeout=6) as resp:
+                return validate_platform_url(resp.geturl())
         except Exception:
             pass
     return url
@@ -62,12 +64,16 @@ class ExtractorRegistry:
         # 1. Check TikTok Photo album / carousel first
         if self.tiktok_photo_extractor.can_handle(url):
             res = self.tiktok_photo_extractor.analyze(url)
+            if res and res.get("status_code") == 403:
+                return res
             if res and res.get("success"):
                 return res
 
         # 2. General extractor via yt-dlp (handles video, soundcloud, facebook, instagram, youtube, tiktok video)
         res = self.ytdlp_extractor.analyze(url)
         if res.get("success"):
+            return res
+        if res.get("status_code") in (403, 404):
             return res
 
         # 3. Fallback for TikTok if yt-dlp encountered captcha or bot block

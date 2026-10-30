@@ -22,3 +22,12 @@ def test_tiktok_photo_extractor_can_handle():
     assert extractor.can_handle("https://www.tiktok.com/@user/photo/7123456789012345678")
     assert extractor.can_handle("https://vt.tiktok.com/ZSjV9xxxx/")
     assert not extractor.can_handle("https://www.youtube.com/watch?v=123")
+    assert not extractor.can_handle("https://tiktok.com.evil.example/@user/photo/123")
+
+
+def test_debug_environment_does_not_break_startup(monkeypatch):
+    from app.config import Settings
+    monkeypatch.setenv("DEBUG", "WARN")
+    assert Settings().DEBUG is False
+    monkeypatch.setenv("VIBELOAD_DEBUG", "true")
+    assert Settings().DEBUG is True

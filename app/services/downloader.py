@@ -1,5 +1,6 @@
 import os
 import shutil
+import logging
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -7,7 +8,7 @@ from typing import Optional, List
 import yt_dlp
 from ..config import settings
 from ..schemas import DownloadRequest, DownloadType, FileInfo
-from ..security import sanitize_filename
+from ..security import sanitize_filename, safe_urlopen
 from ..storage import get_job_dir
 from ..workers.jobs import DownloadJob
 from .ffmpeg_service import verify_media_streams, convert_to_mp3, get_ffmpeg_path
@@ -24,16 +25,15 @@ DEFAULT_HEADERS = {
 
 def run_download_job(job: DownloadJob, request: DownloadRequest):
     """Worker function executed in background thread."""
-    job_dir = get_job_dir(job.id)
-    url = clean_and_normalize_url(request.url)
-    url = resolve_redirect_if_needed(url)
-
+    job_dir = None
     try:
+        job_dir = get_job_dir(job.id)
+        url = resolve_redirect_if_needed(clean_and_normalize_url(request.url))
         if job.is_cancelled:
             return
 
         # Case 1: Photo album / Carousel
-        if request.download_type == DownloadType.PHOTOS:
+        if request.download_type in (DownloadType.PHOTOS, DownloadType.SINGLE_PHOTO):
             _handle_photo_album_download(job, request, job_dir)
             return
 
@@ -69,13 +69,17 @@ def run_download_job(job: DownloadJob, request: DownloadRequest):
         if "DOWNLOAD_CANCELLED" in str(e) or job.is_cancelled:
             job.cancel()
         else:
-            job.set_failed(f"Lỗi tải phương tiện: {str(e)}")
+            logging.getLogger("vibeload").exception("Download failed jobId=%s", job.id)
+            message = str(e) if type(e) is RuntimeError else "Nguồn không phản hồi hoặc tệp không thể xử lý. Vui lòng phân tích lại liên kết."
+            job.set_failed(f"Lỗi tải phương tiện: {message}")
         # Clean up any leftover partial files
-        _cleanup_partial_files(job_dir)
+        if job_dir:
+            from ..storage import delete_job_dir
+            delete_job_dir(job.id)
 
 
 def _handle_photo_album_download(job: DownloadJob, request: DownloadRequest, job_dir: Path):
-    job.update_progress(10.0, 0.0, 0, 100, 0)
+    job.update_progress(0.0, 0.0, 0, 0, 0)
     analysis = registry.analyze(request.url)
     if not analysis.get("success") or not analysis.get("photos"):
         raise RuntimeError("Không thể trích xuất danh sách ảnh từ bài viết này")
@@ -86,6 +90,17 @@ def _handle_photo_album_download(job: DownloadJob, request: DownloadRequest, job
 
     if not photos:
         raise RuntimeError("Không có ảnh nào được chọn để tải")
+
+    if request.download_type == DownloadType.SINGLE_PHOTO:
+        if len(photos) != 1:
+            raise RuntimeError("Chọn đúng một ảnh để tải riêng")
+        from .photos import download_photo
+        target = job_dir / "photo"
+        ext, mime = download_photo(photos[0]["url"], target, lambda: job.is_cancelled)
+        final = target.with_suffix("." + ext)
+        target.rename(final)
+        job.set_completed(final, FileInfo(filename=final.name, filesize=final.stat().st_size, content_type=mime))
+        return
 
     raw_title = analysis.get("title") or "TikTok_Photos"
     safe_title = sanitize_filename(raw_title, "TikTok_Photos")
@@ -130,7 +145,7 @@ def _handle_direct_stream_download(job: DownloadJob, request: DownloadRequest, j
     target_path = job_dir / f"{safe_filename}.{ext}"
 
     req = urllib.request.Request(stream_url, headers=DEFAULT_HEADERS)
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with safe_urlopen(req, timeout=settings.SOCKET_TIMEOUT) as resp:
         total_bytes = int(resp.headers.get('Content-Length', 0))
         downloaded = 0
         with open(target_path, 'wb') as out_f:
@@ -142,11 +157,20 @@ def _handle_direct_stream_download(job: DownloadJob, request: DownloadRequest, j
                     break
                 out_f.write(chunk)
                 downloaded += len(chunk)
+                if downloaded > settings.MAX_FILE_SIZE_MB * 1024 * 1024:
+                    raise RuntimeError("Tệp vượt giới hạn dung lượng cho phép")
                 if total_bytes > 0:
                     pct = (downloaded / total_bytes) * 100.0
                     job.update_progress(pct, 0.0, downloaded, total_bytes, 0)
 
     stream_check = verify_media_streams(str(target_path))
+    if not stream_check.get("success") or not stream_check.get("has_audio") or (ext == "mp4" and not stream_check.get("has_video")):
+        raise RuntimeError("Tệp tải về không có luồng media hợp lệ")
+    if request.download_type == DownloadType.AUDIO:
+        converted = job_dir / (safe_filename + "_converted.mp3")
+        convert_to_mp3(str(target_path), str(converted), request.audio_bitrate or 192)
+        target_path.unlink(missing_ok=True)
+        target_path = converted
     filesize = target_path.stat().st_size
     content_type = "video/mp4" if ext == "mp4" else "audio/mpeg"
     file_info = FileInfo(
@@ -169,6 +193,8 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
             raise RuntimeError("DOWNLOAD_CANCELLED")
         if d.get('status') == 'downloading':
             downloaded = d.get('downloaded_bytes', 0)
+            if downloaded > settings.MAX_FILE_SIZE_MB * 1024 * 1024:
+                raise RuntimeError("Tệp vượt giới hạn dung lượng cho phép")
             total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
             speed = d.get('speed') or 0.0
             eta = d.get('eta') or 0
@@ -181,6 +207,8 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
+        'max_filesize': settings.MAX_FILE_SIZE_MB * 1024 * 1024,
+        'retries': 2,
         'socket_timeout': settings.SOCKET_TIMEOUT,
         'progress_hooks': [hook],
         'http_headers': DEFAULT_HEADERS,
@@ -247,6 +275,8 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
             raise RuntimeError("DOWNLOAD_CANCELLED")
         if d.get('status') == 'downloading':
             downloaded = d.get('downloaded_bytes', 0)
+            if downloaded > settings.MAX_FILE_SIZE_MB * 1024 * 1024:
+                raise RuntimeError("Tệp vượt giới hạn dung lượng cho phép")
             total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
             speed = d.get('speed') or 0.0
             eta = d.get('eta') or 0
@@ -264,6 +294,8 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
+        'max_filesize': settings.MAX_FILE_SIZE_MB * 1024 * 1024,
+        'retries': 2,
         'socket_timeout': settings.SOCKET_TIMEOUT,
         'progress_hooks': [hook],
         'http_headers': DEFAULT_HEADERS,

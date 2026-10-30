@@ -1,15 +1,18 @@
 from typing import List, Union
 import json
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
+import tempfile
 
 
 class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     ENVIRONMENT: str = "production"
-    DEBUG: bool = False
+    # Avoid collisions with host tooling that exports DEBUG=WARN, etc.
+    DEBUG: bool = Field(False, validation_alias="VIBELOAD_DEBUG")
+    SYSTEM_STATUS_TOKEN: str = ""
 
     CORS_ORIGINS: Union[List[str], str] = [
         "https://vibeload-web.vercel.app",
@@ -19,16 +22,17 @@ class Settings(BaseSettings):
         "http://127.0.0.1:4173",
     ]
 
-    STORAGE_DIR: str = "./storage"
+    STORAGE_DIR: str = str(Path(tempfile.gettempdir()) / "vibeload")
     MAX_STORAGE_MB: int = 5120  # 5 GB
     STORAGE_TTL_SECONDS: int = 1800  # 30 minutes
 
-    MAX_CONCURRENT_JOBS_PER_IP: int = 3
-    MAX_CONCURRENT_JOBS_TOTAL: int = 10
+    MAX_CONCURRENT_JOBS_PER_IP: int = 1
+    MAX_CONCURRENT_JOBS_TOTAL: int = 1
     RATE_LIMIT_PER_MINUTE: int = 60
 
     MAX_FILE_SIZE_MB: int = 500
     SOCKET_TIMEOUT: int = 30
+    MAX_PHOTO_SIZE_MB: int = 20
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

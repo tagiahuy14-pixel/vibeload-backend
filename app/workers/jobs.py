@@ -25,6 +25,8 @@ class DownloadJob:
         self.updated_at = time.time()
 
     def update_progress(self, percent: float, speed: float, downloaded: int, total: int, eta: int):
+        if self.is_cancelled:
+            raise RuntimeError("DOWNLOAD_CANCELLED")
         self.status = JobStatus.DOWNLOADING
         self.progress_percent = round(percent, 1)
         self.speed_bytes_sec = speed
@@ -34,11 +36,15 @@ class DownloadJob:
         self.updated_at = time.time()
 
     def set_processing(self):
+        if self.is_cancelled:
+            raise RuntimeError("DOWNLOAD_CANCELLED")
         self.status = JobStatus.PROCESSING
         self.progress_percent = 95.0
         self.updated_at = time.time()
 
     def set_completed(self, file_path: Path, file_info: FileInfo):
+        if self.is_cancelled:
+            raise RuntimeError("DOWNLOAD_CANCELLED")
         self.status = JobStatus.COMPLETED
         self.progress_percent = 100.0
         self.file_path = file_path
@@ -80,6 +86,11 @@ class JobManager:
         job_id = str(uuid.uuid4())
         job = DownloadJob(job_id=job_id, client_ip=client_ip, url=url)
         with self._lock:
+            from ..config import settings
+            from fastapi import HTTPException
+            active = [j for j in self._jobs.values() if j.status in (JobStatus.QUEUED, JobStatus.DOWNLOADING, JobStatus.PROCESSING)]
+            if len(active) >= settings.MAX_CONCURRENT_JOBS_TOTAL or sum(j.client_ip == client_ip for j in active) >= settings.MAX_CONCURRENT_JOBS_PER_IP:
+                raise HTTPException(429, "Máy chủ đang bận xử lý tác vụ. Vui lòng thử lại sau.")
             self._jobs[job_id] = job
         return job
 

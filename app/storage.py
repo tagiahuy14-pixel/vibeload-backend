@@ -54,7 +54,16 @@ def cleanup_expired_files(force_aggressive: bool = False):
 
     try:
         for entry in storage_dir.iterdir():
+            if entry.is_file() and entry.name.startswith("photo-"):
+                if now - entry.stat().st_mtime > ttl:
+                    entry.unlink(missing_ok=True)
+                continue
             if entry.is_dir():
+                from .workers.jobs import job_manager
+                from .schemas import JobStatus
+                job = job_manager.get_job(entry.name)
+                if job and job.status in (JobStatus.QUEUED, JobStatus.DOWNLOADING, JobStatus.PROCESSING):
+                    continue
                 mtime = entry.stat().st_mtime
                 if now - mtime > ttl:
                     try:

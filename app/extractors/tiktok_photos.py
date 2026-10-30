@@ -5,6 +5,7 @@ import urllib.parse
 import urllib.request
 from typing import Dict, Any, Optional, List
 from .base import BaseExtractor
+from ..security import SafeRedirectHandler
 
 DEFAULT_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -16,11 +17,13 @@ DEFAULT_HEADERS = {
 
 class TikTokPhotoExtractor(BaseExtractor):
     def can_handle(self, url: str) -> bool:
-        lower = url.lower()
-        is_tiktok = "tiktok.com" in lower or "douyin.com" in lower
+        parsed = urllib.parse.urlparse(url)
+        lower = parsed.path.lower()
+        host = (parsed.hostname or "").lower().rstrip(".")
+        is_tiktok = any(host == p or host.endswith("." + p) for p in ("tiktok.com", "douyin.com"))
         if not is_tiktok:
             return False
-        return "/photo/" in lower or "vt.tiktok.com" in lower or "vm.tiktok.com" in lower
+        return "/photo/" in lower or host in ("vt.tiktok.com", "vm.tiktok.com")
 
     def analyze(self, url: str) -> Optional[Dict[str, Any]]:
         # 1. Try direct HTML extraction first
@@ -34,11 +37,14 @@ class TikTokPhotoExtractor(BaseExtractor):
     def _extract_direct(self, url: str) -> Optional[Dict[str, Any]]:
         try:
             cj = http.cookiejar.CookieJar()
-            opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+            opener = urllib.request.build_opener(SafeRedirectHandler(), urllib.request.HTTPCookieProcessor(cj))
             req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
             with opener.open(req, timeout=12) as resp:
                 final_url = resp.geturl()
-                html = resp.read().decode('utf-8', errors='ignore')
+                html = resp.read(4 * 1024 * 1024).decode('utf-8', errors='ignore')
+
+            if 'id="captcha' in html.lower() or '<title>captcha' in html.lower():
+                return {"success": False, "status_code": 403, "error": "Nguồn yêu cầu xác minh CAPTCHA; không thể tải nội dung này."}
 
             item = {}
             # Check for __UNIVERSAL_DATA_FOR_REHYDRATION__
@@ -85,7 +91,7 @@ class TikTokPhotoExtractor(BaseExtractor):
                 else:
                     url_list = img.get('imageURL', {}).get('urlList', []) or img.get('urlList', [])
                     if not url_list:
-                        continue
+                        return None  # Never return a silently truncated album.
                     img_url = url_list[0]
 
                 photos.append({
@@ -147,7 +153,7 @@ class TikTokPhotoExtractor(BaseExtractor):
                     if res.get("code") == 0 and "data" in res:
                         d = res["data"]
                         images = d.get("images", [])
-                        music_url = d.get("music") or d.get("play")
+                        music_url = d.get("music")
                         audio_options = []
                         if music_url:
                             audio_options.append({

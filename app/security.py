@@ -2,6 +2,7 @@ import ipaddress
 import re
 import socket
 import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Tuple, Optional
 from fastapi import HTTPException, Request
@@ -45,6 +46,8 @@ UUID_REGEX = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3
 
 def is_ip_blocked(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     """Check if an IP address belongs to private, loopback, or reserved networks."""
+    if not ip.is_global:
+        return True
     for net in BLOCKED_NETWORKS:
         if ip in net:
             return True
@@ -60,7 +63,13 @@ def validate_url_security(raw_url: str) -> str:
     if not url:
         raise HTTPException(status_code=400, detail="URL không được để trống")
 
-    parsed = urllib.parse.urlparse(url)
+    try:
+        parsed = urllib.parse.urlparse(url)
+        port = parsed.port
+    except ValueError:
+        raise HTTPException(status_code=400, detail="URL hoặc cổng không hợp lệ")
+    if parsed.username or parsed.password or any(ord(c) < 33 for c in url):
+        raise HTTPException(status_code=400, detail="URL không được chứa thông tin đăng nhập hoặc ký tự điều khiển")
     if parsed.scheme not in ("http", "https"):
         raise HTTPException(status_code=400, detail="Chỉ chấp nhận giao thức HTTP hoặc HTTPS")
 
@@ -98,6 +107,30 @@ def validate_url_security(raw_url: str) -> str:
         raise HTTPException(status_code=400, detail=f"Không thể phân giải tên miền: {hostname}")
 
     return url
+
+
+PLATFORM_HOSTS = ("tiktok.com", "douyin.com", "youtube.com", "youtu.be",
+                  "youtube-nocookie.com", "facebook.com", "fb.watch",
+                  "instagram.com", "soundcloud.com")
+
+
+def validate_platform_url(url: str) -> str:
+    url = validate_url_security(url)
+    host = urllib.parse.urlparse(url).hostname.lower().rstrip(".")
+    if not any(host == p or host.endswith("." + p) for p in PLATFORM_HOSTS):
+        raise HTTPException(status_code=400, detail="Nguồn này chưa được backend hỗ trợ.")
+    return url
+
+
+class SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        validate_url_security(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def safe_urlopen(request, timeout=20):
+    validate_url_security(request.full_url if isinstance(request, urllib.request.Request) else request)
+    return urllib.request.build_opener(SafeRedirectHandler()).open(request, timeout=timeout)
 
 
 def sanitize_filename(filename: str, fallback: str = "media") -> str:

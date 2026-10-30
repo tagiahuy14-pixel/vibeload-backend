@@ -199,7 +199,9 @@ class YtDlpExtractor(BaseExtractor):
                     "error": None
                 }
         except yt_dlp.utils.DownloadError as e:
-            return {"success": False, "error": self._format_error(str(e), url)}
+            raw = str(e).lower()
+            status = 403 if any(s in raw for s in ("captcha", "sign in", "login", "private video", "drm", "http error 403", "bot")) else 404 if any(s in raw for s in ("404", "not found", "does not exist")) else 504 if "timed out" in raw else 502
+            return {"success": False, "status_code": status, "error": self._format_error(str(e), url)}
         except Exception as e:
             return {"success": False, "error": f"Lỗi phân tích: {str(e)}"}
 
@@ -213,4 +215,4 @@ class YtDlpExtractor(BaseExtractor):
             return "Nội dung này được bảo vệ bản quyền (DRM), không thể tải."
         if "bot" in err_lower or "captcha" in err_lower:
             return "Nền tảng yêu cầu xác minh bảo mật (CAPTCHA). Vui lòng thử lại sau."
-        return f"Không thể phân tích nội dung từ liên kết: {err}"
+        return "Không thể phân tích nội dung từ nguồn. Liên kết có thể hết hạn hoặc nền tảng tạm thời không phản hồi."

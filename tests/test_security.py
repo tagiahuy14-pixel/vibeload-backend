@@ -67,3 +67,18 @@ def test_validate_job_id():
     for inv in invalid_uuids:
         with pytest.raises(HTTPException):
             validate_job_id(inv)
+
+
+def test_redirect_cannot_access_internal_network():
+    from app.security import SafeRedirectHandler
+    import urllib.request
+    with pytest.raises(HTTPException) as exc:
+        SafeRedirectHandler().redirect_request(urllib.request.Request("https://public.example"), None, 302, "redirect", {}, "http://169.254.169.254/latest/meta-data/")
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.parametrize("url", ["https://example.com:bad/photo", "https://user:pass@example.com/photo", "https://[invalid/", "https://example.com/\nphoto"])
+def test_malformed_urls_are_client_errors(url):
+    with pytest.raises(HTTPException) as exc:
+        validate_url_security(url)
+    assert exc.value.status_code == 400

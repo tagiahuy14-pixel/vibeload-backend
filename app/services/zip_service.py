@@ -3,6 +3,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 from typing import List, Dict, Any, Callable, Optional
+from .photos import download_photo
+from ..config import settings
 
 
 def create_photo_zip(
@@ -19,6 +21,7 @@ def create_photo_zip(
 
     downloaded_files: List[Tuple[str, Path]] = []
     total = len(photos)
+    total_bytes = 0
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -31,7 +34,7 @@ def create_photo_zip(
 
             img_url = photo.get("url")
             if not img_url:
-                continue
+                raise RuntimeError(f"Ảnh #{photo.get('index', idx + 1)} thiếu URL; đã tải {idx}/{total} ảnh")
 
             file_ext = "jpg"
             if ".png" in img_url.lower():
@@ -42,11 +45,20 @@ def create_photo_zip(
             target_filename = f"photo_{idx + 1:02d}.{file_ext}"
             target_path = temp_dir / target_filename
 
-            req = urllib.request.Request(img_url, headers=headers)
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = resp.read()
-                with open(target_path, "wb") as f:
-                    f.write(data)
+            try:
+                ext, mime = download_photo(img_url, target_path,
+                    is_cancelled_cb or (lambda: False),
+                    settings.MAX_FILE_SIZE_MB * 1024 * 1024 - total_bytes)
+                total_bytes += target_path.stat().st_size
+                actual_path = target_path.with_suffix("." + ext)
+                if actual_path != target_path:
+                    target_path.rename(actual_path)
+                target_path = actual_path
+                target_filename = target_path.name
+            except Exception as exc:
+                if str(exc) == "DOWNLOAD_CANCELLED":
+                    raise
+                raise RuntimeError(f"Ảnh #{photo.get('index', idx + 1)} tải thất bại; đã hoàn tất {idx}/{total} ảnh") from exc
 
             downloaded_files.append((target_filename, target_path))
 
