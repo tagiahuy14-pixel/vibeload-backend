@@ -58,7 +58,7 @@ class AnalyzeResponse(BaseModel):
     title: str
     thumbnail: str = ""
     uploader: str = "Unknown Author"
-    duration: int = 0
+    duration: float = 0
     platform: str = "unknown"
     is_photo_album: bool = False
     is_audio_only: bool = False

@@ -4,10 +4,12 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, status
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 import yt_dlp
+import urllib.request
+import urllib.parse
 
 from .config import settings
 from .schemas import (
@@ -21,7 +23,8 @@ from .schemas import (
 from .security import (
     validate_url_security,
     validate_job_id,
-    get_client_ip
+    get_client_ip,
+    sanitize_filename
 )
 from .storage import (
     check_storage_capacity,
@@ -115,7 +118,7 @@ def analyze_media(req: AnalyzeRequest):
         title=result.get("title") or "Unknown Title",
         thumbnail=result.get("thumbnail") or "",
         uploader=result.get("uploader") or "Unknown Author",
-        duration=result.get("duration") or 0,
+        duration=round(float(result.get("duration") or 0), 1),
         platform=result.get("platform") or "unknown",
         is_photo_album=result.get("is_photo_album", False),
         is_audio_only=result.get("is_audio_only", False),
@@ -220,3 +223,41 @@ def download_media_file(id: str):
             "Expires": "0"
         }
     )
+
+
+@app.get("/api/download-photo")
+def download_single_photo(url: str, filename: str = "photo.jpg"):
+    """
+    Directly proxy an individual photo to client browser with attachment headers.
+    """
+    valid_url = validate_url_security(url)
+    req = urllib.request.Request(
+        valid_url,
+        headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            content_type = resp.headers.get_content_type() or "image/jpeg"
+            content = resp.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Không thể tải ảnh: {str(e)}")
+
+    safe_name = sanitize_filename(filename, "photo.jpg")
+    if not safe_name.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
+        ext = "jpg"
+        if "png" in content_type:
+            ext = "png"
+        elif "webp" in content_type:
+            ext = "webp"
+        safe_name = f"{safe_name}.{ext}"
+
+    encoded_filename = urllib.parse.quote(safe_name)
+    headers = {
+        "Content-Disposition": f'attachment; filename="{safe_name}"; filename*=UTF-8\'\'{encoded_filename}',
+        "Access-Control-Expose-Headers": "Content-Disposition",
+        "Cache-Control": "public, max-age=3600"
+    }
+    return Response(content=content, media_type=content_type, headers=headers)
+
