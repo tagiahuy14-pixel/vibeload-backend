@@ -7,11 +7,12 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PORT=8000
 
-# Install system dependencies: FFmpeg, FFprobe, curl for healthcheck
+# Install system dependencies: FFmpeg, FFprobe, curl for healthcheck, nodejs for yt-dlp JS challenge
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
     ca-certificates \
+    nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user and application directory

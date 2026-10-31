@@ -68,7 +68,7 @@ def api(path, data=None):
     return meta, parsed
 
 
-def audit(name):
+def audit(name, poll_interval=1.0):
     url, kind = SAMPLES[name]
     result = {"platform": name, "source": url, "started": now(), "status": "Không đạt", "events": []}
     try:
@@ -103,7 +103,7 @@ def audit(name):
         transient_errors = 0
         while job["status"] in ("queued", "downloading", "processing"):
             assert time.monotonic() < deadline, "Job deadline exceeded"
-            time.sleep(1)
+            time.sleep(poll_interval)
             meta, polled = api("/api/downloads/" + result["job_id"])
             result["events"].append({**meta, "response": polled})
             if meta["status"] != 200:
@@ -112,6 +112,7 @@ def audit(name):
                 assert transient_errors <= 3, "Repeated polling errors"
                 continue
             job = polled
+            assert type(job["eta_seconds"]) is int and job["eta_seconds"] >= 0
         assert job["status"] == "completed", job.get("error")
         meta, body, headers = call("/api/downloads/" + job["id"] + "/file")
         assert meta["status"] == 200

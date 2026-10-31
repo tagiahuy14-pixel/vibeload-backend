@@ -58,6 +58,7 @@ def test_extractor_failure_is_502(monkeypatch):
 
 
 def test_photo_download_with_vietnamese_filename(monkeypatch, tmp_path):
+    pytest.importorskip("PIL")
     import io
     from PIL import Image
     from urllib.parse import unquote

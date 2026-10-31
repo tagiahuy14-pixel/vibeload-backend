@@ -219,7 +219,7 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'http_headers': DEFAULT_HEADERS,
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios', 'android']
+                'player_client': ['android', 'web']
             }
         }
     }
@@ -309,7 +309,7 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'merge_output_format': 'mp4',
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios', 'android']
+                'player_client': ['android', 'web']
             }
         }
     }

@@ -1,8 +1,10 @@
 import io
 import zipfile
 from email.message import Message
-from PIL import Image
 import pytest
+
+PIL = pytest.importorskip("PIL")
+Image = PIL.Image
 from app.services.photos import download_photo
 from app.services.zip_service import create_photo_zip
 

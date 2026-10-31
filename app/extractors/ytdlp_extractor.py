@@ -39,7 +39,7 @@ class YtDlpExtractor(BaseExtractor):
             'http_headers': DEFAULT_HEADERS,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['ios', 'android']
+                    'player_client': ['android', 'web']
                 }
             }
         }
