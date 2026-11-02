@@ -217,9 +217,10 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'socket_timeout': settings.SOCKET_TIMEOUT,
         'progress_hooks': [hook],
         'http_headers': DEFAULT_HEADERS,
+        'js_runtimes': {'node': {}},
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web']
+                'player_client': ['visionos', 'android']
             }
         }
     }
@@ -307,9 +308,10 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'progress_hooks': [hook],
         'http_headers': DEFAULT_HEADERS,
         'merge_output_format': 'mp4',
+        'js_runtimes': {'node': {}},
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web']
+                'player_client': ['visionos', 'android']
             }
         }
     }

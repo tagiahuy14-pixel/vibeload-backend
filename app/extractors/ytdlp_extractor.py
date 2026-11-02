@@ -41,9 +41,10 @@ class YtDlpExtractor(BaseExtractor):
             'writeautomaticsub': False,
             'writeinfojson': False,
             'http_headers': DEFAULT_HEADERS,
+            'js_runtimes': {'node': {}},
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web']
+                    'player_client': ['visionos', 'android']
                 }
             }
         }
