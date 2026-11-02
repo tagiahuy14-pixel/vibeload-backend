@@ -29,7 +29,7 @@ def run_download_job(job: DownloadJob, request: DownloadRequest):
     job_dir = None
     try:
         job_dir = get_job_dir(job.id)
-        url = resolve_redirect_if_needed(clean_and_normalize_url(request.url))
+        url = clean_and_normalize_url(resolve_redirect_if_needed(clean_and_normalize_url(request.url)))
         if job.is_cancelled:
             return
 

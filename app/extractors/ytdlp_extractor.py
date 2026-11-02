@@ -30,12 +30,16 @@ class YtDlpExtractor(BaseExtractor):
         ffmpeg_loc = find_ffmpeg_location()
         ydl_opts = {
             'quiet': True,
-            'no_warnings': False,
+            'no_warnings': True,
             'logger': ExtractorLogger(),
             'skip_download': True,
             'extract_flat': False,
-            'socket_timeout': 20,
+            'socket_timeout': 15,
             'noplaylist': True,
+            'no_color': True,
+            'writesubtitles': False,
+            'writeautomaticsub': False,
+            'writeinfojson': False,
             'http_headers': DEFAULT_HEADERS,
             'extractor_args': {
                 'youtube': {

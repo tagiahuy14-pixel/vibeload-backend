@@ -99,6 +99,7 @@ def convert_to_mp3(input_path: str, output_path: str, bitrate: int = 192) -> boo
     cmd = [
         ffmpeg,
         "-y",
+        "-threads", "0",
         "-i", input_path,
         "-vn",
         "-c:a", "libmp3lame",

@@ -39,14 +39,27 @@ def clean_and_normalize_url(raw_url: str) -> str:
 
 
 def resolve_redirect_if_needed(url: str) -> str:
-    """Follow HTTP redirect for short links like fb.watch or facebook.com/share/."""
+    """Follow HTTP redirect for short links like fb.watch, on.soundcloud.com, vt.tiktok.com, or social shares."""
     url_lower = url.lower()
     host = (urllib.parse.urlparse(url).hostname or "").lower()
-    if host in ("fb.watch", "vt.tiktok.com", "vm.tiktok.com") or (host in ("facebook.com", "www.facebook.com") and "/share/" in url_lower):
+    short_hosts = (
+        "fb.watch",
+        "vt.tiktok.com",
+        "vm.tiktok.com",
+        "on.soundcloud.com",
+        "soundcloud.app.goo.gl",
+        "youtu.be",
+    )
+    is_share_path = (
+        (host in ("facebook.com", "www.facebook.com") and any(p in url_lower for p in ("/share/", "/reel/", "/watch/"))) or
+        (host in ("instagram.com", "www.instagram.com") and "/share/" in url_lower)
+    )
+    if host in short_hosts or is_share_path:
         try:
             req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
-            with safe_urlopen(req, timeout=6) as resp:
-                return validate_platform_url(resp.geturl())
+            with safe_urlopen(req, timeout=8) as resp:
+                resolved = resp.geturl()
+                return validate_platform_url(resolved)
         except Exception:
             pass
     return url
@@ -60,6 +73,7 @@ class ExtractorRegistry:
     def analyze(self, raw_url: str) -> Dict[str, Any]:
         url = clean_and_normalize_url(raw_url)
         url = resolve_redirect_if_needed(url)
+        url = clean_and_normalize_url(url)
 
         # 1. Check TikTok Photo album / carousel first
         if self.tiktok_photo_extractor.can_handle(url):
