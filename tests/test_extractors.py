@@ -52,3 +52,11 @@ def test_facebook_sd_hd_do_not_invent_dimensions(monkeypatch):
     assert all(option["height"] == option["width"] == 0 for option in result["video_options"])
     assert all("chưa rõ" in option["resolution"] for option in result["video_options"])
     assert all(option["vcodec"] is None for option in result["video_options"])
+
+
+def test_threads_extractor_can_handle():
+    from app.extractors.threads import ThreadsExtractor
+    extractor = ThreadsExtractor()
+    assert extractor.can_handle("https://www.threads.net/@user/post/123")
+    assert extractor.can_handle("https://threads.com/@user/post/123")
+    assert not extractor.can_handle("https://www.youtube.com/watch?v=123")

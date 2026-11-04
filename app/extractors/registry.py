@@ -3,6 +3,7 @@ import urllib.parse
 import urllib.request
 from typing import Dict, Any
 from .tiktok_photos import TikTokPhotoExtractor
+from .threads import ThreadsExtractor
 from .ytdlp_extractor import YtDlpExtractor
 from ..security import safe_urlopen, validate_platform_url
 
@@ -29,7 +30,7 @@ def clean_and_normalize_url(raw_url: str) -> str:
         # Keep query parameters that represent video IDs or photo IDs (like v= in youtube)
         keep_keys = {'v', 'list', 'index', 'p', 't'}
         query_dict = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
-        cleaned_query = {k: v for k, v in query_dict.items() if k in keep_keys or not k.startswith(('utm_', 'fbclid', 'igsh', 'is_from_webapp', 'sender_device', 'feature', 'si'))}
+        cleaned_query = {k: v for k, v in query_dict.items() if k in keep_keys or not k.startswith(('utm_', 'fbclid', 'igsh', 'is_from_webapp', 'sender_device', 'feature', 'si', 'xmt', 'slof'))}
         new_query_str = urllib.parse.urlencode(cleaned_query, doseq=True)
         url = urllib.parse.urlunparse(parsed._replace(query=new_query_str))
     except Exception:
@@ -68,6 +69,7 @@ def resolve_redirect_if_needed(url: str) -> str:
 class ExtractorRegistry:
     def __init__(self):
         self.tiktok_photo_extractor = TikTokPhotoExtractor()
+        self.threads_extractor = ThreadsExtractor()
         self.ytdlp_extractor = YtDlpExtractor()
 
     def analyze(self, raw_url: str) -> Dict[str, Any]:
@@ -83,7 +85,15 @@ class ExtractorRegistry:
             if res and res.get("success"):
                 return res
 
-        # 2. General extractor via yt-dlp (handles video, soundcloud, facebook, instagram, youtube, tiktok video)
+        # 2. Check Threads (photos & videos)
+        if self.threads_extractor.can_handle(url):
+            res = self.threads_extractor.analyze(url)
+            if res and res.get("success"):
+                return res
+            if res and res.get("status_code") in (403, 404):
+                return res
+
+        # 3. General extractor via yt-dlp (handles video, soundcloud, facebook, instagram, youtube, tiktok video)
         res = self.ytdlp_extractor.analyze(url)
         if res.get("success"):
             return res

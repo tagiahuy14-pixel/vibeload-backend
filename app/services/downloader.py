@@ -167,8 +167,12 @@ def _handle_direct_stream_download(job: DownloadJob, request: DownloadRequest, j
                     job.update_progress(pct, 0.0, downloaded, total_bytes, 0)
 
     stream_check = verify_media_streams(str(target_path))
-    if not stream_check.get("success") or not stream_check.get("has_audio") or (ext == "mp4" and not stream_check.get("has_video")):
-        raise RuntimeError("Tệp tải về không có luồng media hợp lệ")
+    if not stream_check.get("success"):
+        raise RuntimeError("Tệp tải về không thể đọc được luồng media")
+    if ext == "mp4" and not stream_check.get("has_video"):
+        raise RuntimeError("Tệp video tải về không có luồng hình ảnh hợp lệ")
+    if ext == "mp3" and not stream_check.get("has_audio"):
+        raise RuntimeError("Tệp âm thanh tải về không có luồng tiếng hợp lệ")
     if request.download_type == DownloadType.AUDIO:
         converted = job_dir / (safe_filename + "_converted.mp3")
         convert_to_mp3(str(target_path), str(converted), request.audio_bitrate or 192)
