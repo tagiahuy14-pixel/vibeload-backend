@@ -109,9 +109,13 @@ def validate_url_security(raw_url: str) -> str:
     return url
 
 
-PLATFORM_HOSTS = ("tiktok.com", "douyin.com", "youtube.com", "youtu.be",
-                  "youtube-nocookie.com", "facebook.com", "fb.watch",
-                  "instagram.com", "soundcloud.com", "threads.net", "threads.com")
+PLATFORM_HOSTS = (
+    "tiktok.com", "douyin.com", "youtube.com", "youtu.be",
+    "youtube-nocookie.com", "facebook.com", "fb.watch",
+    "instagram.com", "soundcloud.com", "threads.net", "threads.com",
+    "pinterest.com", "pin.it", "reddit.com", "v.redd.it", "redd.it",
+    "twitter.com", "x.com"
+)
 
 
 def validate_platform_url(url: str) -> str:

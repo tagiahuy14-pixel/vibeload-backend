@@ -50,6 +50,9 @@ def resolve_redirect_if_needed(url: str) -> str:
         "on.soundcloud.com",
         "soundcloud.app.goo.gl",
         "youtu.be",
+        "pin.it",
+        "v.redd.it",
+        "t.co",
     )
     is_share_path = (
         (host in ("facebook.com", "www.facebook.com") and any(p in url_lower for p in ("/share/", "/reel/", "/watch/"))) or
