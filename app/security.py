@@ -135,10 +135,15 @@ def safe_urlopen(request, timeout=20):
 
 def sanitize_filename(filename: str, fallback: str = "media") -> str:
     """
-    Sanitize filename against path traversal and dangerous characters.
+    Sanitize filename against path traversal and dangerous characters,
+    synchronous with Android MediaStoreStorageManager prefix cleaner.
     """
-    # Normalize unicode
-    name = re.sub(r'[\u0000-\u001f\u007f-\u009f\\/:*?"<>|]', '_', filename)
+    cleaned = filename.strip()
+    prefix_regex = re.compile(r'^(?:Âm thanh|Video|Nhạc|Sound|Audio|Music)\s*[:\-_|]\s*', re.IGNORECASE)
+    cleaned = prefix_regex.sub('', cleaned).strip()
+
+    # Normalize unicode & remove dangerous characters
+    name = re.sub(r'[\u0000-\u001f\u007f-\u009f\\/:*?"<>|]', '_', cleaned)
     name = re.sub(r'\.{2,}', '_', name)  # remove ..
     name = name.strip('. ')
     if not name:
