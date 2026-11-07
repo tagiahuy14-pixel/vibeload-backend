@@ -44,8 +44,7 @@ class YtDlpExtractor(BaseExtractor):
             'js_runtimes': {'node': {}},
             'extractor_args': {
                 'youtube': {
-                    'player_skip': ['webpage', 'configs'],
-                    'player_client': ['android', 'web', 'tv_samsung', 'ios', 'mweb']
+                    'player_client': ['visionos', 'android']
                 }
             }
         }
