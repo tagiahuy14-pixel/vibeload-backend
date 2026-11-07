@@ -105,8 +105,10 @@ def _handle_photo_album_download(job: DownloadJob, request: DownloadRequest, job
         job.set_completed(final, FileInfo(filename=final.name, filesize=final.stat().st_size, content_type=mime))
         return
 
-    raw_title = analysis.get("title") or "TikTok_Photos"
-    safe_title = sanitize_filename(raw_title, "TikTok_Photos")
+    platform = (analysis.get("platform") or "media").capitalize()
+    fallback_name = f"{platform}_Photos"
+    raw_title = analysis.get("title") or fallback_name
+    safe_title = sanitize_filename(raw_title, fallback_name)
     zip_path = job_dir / f"{safe_title}.zip"
 
     def progress_hook(pct, current, total):

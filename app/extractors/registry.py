@@ -4,6 +4,7 @@ import urllib.request
 from typing import Dict, Any
 from .tiktok_photos import TikTokPhotoExtractor
 from .threads import ThreadsExtractor
+from .pinterest import PinterestExtractor
 from .ytdlp_extractor import YtDlpExtractor
 from ..security import safe_urlopen, validate_platform_url
 
@@ -73,6 +74,7 @@ class ExtractorRegistry:
     def __init__(self):
         self.tiktok_photo_extractor = TikTokPhotoExtractor()
         self.threads_extractor = ThreadsExtractor()
+        self.pinterest_extractor = PinterestExtractor()
         self.ytdlp_extractor = YtDlpExtractor()
 
     def analyze(self, raw_url: str) -> Dict[str, Any]:
@@ -96,7 +98,28 @@ class ExtractorRegistry:
             if res and res.get("status_code") in (403, 404):
                 return res
 
-        # 3. General extractor via yt-dlp (handles video, soundcloud, facebook, instagram, youtube, tiktok video)
+        # 3. Check Pinterest (photos & videos)
+        if self.pinterest_extractor.can_handle(url):
+            res = self.pinterest_extractor.analyze(url)
+            if res and res.get("success"):
+                return res
+            if res and res.get("status_code") in (403, 404):
+                return res
+
+        # 4. Check for incomplete / truncated YouTube link
+        yt_match = re.search(r'(?:youtu\.be/|youtube\.com/(?:watch\?.*v=|shorts/|embed/))([a-zA-Z0-9_-]+)', url)
+        if yt_match:
+            vid = yt_match.group(1)
+            if len(vid) < 11:
+                return {
+                    "success": False,
+                    "error": "Đường dẫn YouTube chưa đầy đủ (mã video thường gồm 11 ký tự). Vui lòng sao chép lại toàn bộ liên kết từ YouTube.",
+                    "error_code": "INCOMPLETE_URL",
+                    "status_code": 400,
+                    "retryable": False
+                }
+
+        # 5. General extractor via yt-dlp (handles video, soundcloud, facebook, instagram, youtube, tiktok video)
         res = self.ytdlp_extractor.analyze(url)
         if res.get("success"):
             return res

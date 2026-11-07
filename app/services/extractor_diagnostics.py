@@ -15,6 +15,8 @@ def redact_log(message):
 
 def classify_extractor_error(error):
     raw = str(error).lower()
+    if "truncated" in raw or "incomplete youtube id" in raw or ("unsupported url" in raw and "youtube" in raw):
+        return 400, "INCOMPLETE_URL", "Đường dẫn YouTube chưa đầy đủ (mã video thường gồm 11 ký tự). Vui lòng sao chép lại toàn bộ liên kết từ YouTube.", False
     if "drm" in raw:
         return 403, "DRM_PROTECTED", "Nội dung được bảo vệ DRM; không thể tải.", False
     if "not a bot" in raw or "captcha" in raw:

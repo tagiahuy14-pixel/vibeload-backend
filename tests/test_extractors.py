@@ -60,3 +60,24 @@ def test_threads_extractor_can_handle():
     assert extractor.can_handle("https://www.threads.net/@user/post/123")
     assert extractor.can_handle("https://threads.com/@user/post/123")
     assert not extractor.can_handle("https://www.youtube.com/watch?v=123")
+
+
+def test_pinterest_extractor_can_handle():
+    from app.extractors.pinterest import PinterestExtractor
+    extractor = PinterestExtractor()
+    assert extractor.can_handle("https://www.pinterest.com/pin/1095430309380908165/")
+    assert extractor.can_handle("https://pin.it/16u0fbjFj")
+    assert not extractor.can_handle("https://www.youtube.com/watch?v=123")
+
+
+def test_incomplete_youtube_url_rejected_early():
+    res = registry.analyze("https://youtu.be/_DmN8")
+    assert not res["success"]
+    assert res["status_code"] == 400
+    assert res["error_code"] == "INCOMPLETE_URL"
+    assert "chưa đầy đủ" in res["error"]
+
+    res2 = registry.analyze("https://youtu.be/mn5sst")
+    assert not res2["success"]
+    assert res2["status_code"] == 400
+    assert res2["error_code"] == "INCOMPLETE_URL"
