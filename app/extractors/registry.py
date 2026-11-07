@@ -126,7 +126,7 @@ class ExtractorRegistry:
         if res.get("status_code") in (403, 404):
             return res
 
-        # 3. Fallback for TikTok if yt-dlp encountered captcha or bot block
+        # 6. Fallback for TikTok if yt-dlp encountered captcha or bot block
         if "tiktok.com" in url.lower() or "douyin.com" in url.lower():
             fb_res = self.tiktok_photo_extractor._extract_tikwm(url)
             if fb_res and fb_res.get("success"):
