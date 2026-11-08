@@ -1,3 +1,4 @@
+from ..config import get_youtube_cookies_path
 import re
 import shutil
 from typing import Dict, Any, List, Optional
@@ -50,6 +51,9 @@ class YtDlpExtractor(BaseExtractor):
         }
         if ffmpeg_loc:
             ydl_opts['ffmpeg_location'] = ffmpeg_loc
+        cookie_file = get_youtube_cookies_path()
+        if cookie_file:
+            ydl_opts['cookiefile'] = cookie_file
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:

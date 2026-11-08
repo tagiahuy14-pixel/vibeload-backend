@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # Avoid collisions with host tooling that exports DEBUG=WARN, etc.
     DEBUG: bool = Field(False, validation_alias="VIBELOAD_DEBUG")
     SYSTEM_STATUS_TOKEN: str = ""
+    YOUTUBE_COOKIES: str = ""
 
     CORS_ORIGINS: Union[List[str], str] = [
         "https://vibeload-web.vercel.app",
@@ -61,3 +62,42 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+_COOKIES_PATH = None
+
+
+def get_youtube_cookies_path():
+    global _COOKIES_PATH
+    raw = (settings.YOUTUBE_COOKIES or "").strip()
+    if not raw:
+        return None
+    import os
+    if _COOKIES_PATH and os.path.exists(_COOKIES_PATH):
+        return _COOKIES_PATH
+    if os.path.isfile(raw):
+        _COOKIES_PATH = raw
+        return _COOKIES_PATH
+
+    content = raw
+    import base64
+    try:
+        decoded = base64.b64decode(raw.encode("ascii")).decode("utf-8")
+        if "# Netscape HTTP Cookie File" in decoded or ".youtube.com" in decoded:
+            content = decoded
+    except Exception:
+        pass
+
+    try:
+        tmp_dir = Path(settings.STORAGE_DIR) / "config"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        cookie_file = tmp_dir / "youtube_cookies.txt"
+        cookie_file.write_text(content, encoding="utf-8")
+        try:
+            os.chmod(cookie_file, 0o600)
+        except Exception:
+            pass
+        _COOKIES_PATH = str(cookie_file)
+        return _COOKIES_PATH
+    except Exception:
+        return None

@@ -1,3 +1,4 @@
+from ..config import get_youtube_cookies_path
 import os
 import shutil
 import logging
@@ -232,6 +233,9 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
     }
     if ffmpeg_loc:
         ydl_opts['ffmpeg_location'] = os.path.dirname(ffmpeg_loc)
+    cookie_file = get_youtube_cookies_path()
+    if cookie_file:
+        ydl_opts['cookiefile'] = cookie_file
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(target_url, download=True)
@@ -323,6 +327,9 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
     }
     if ffmpeg_loc:
         ydl_opts['ffmpeg_location'] = os.path.dirname(ffmpeg_loc)
+    cookie_file = get_youtube_cookies_path()
+    if cookie_file:
+        ydl_opts['cookiefile'] = cookie_file
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(target_url, download=True)
