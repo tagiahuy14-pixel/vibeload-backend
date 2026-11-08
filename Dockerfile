@@ -7,13 +7,20 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PORT=8000
 
-# Install system dependencies: FFmpeg, FFprobe, curl for healthcheck, nodejs for yt-dlp JS challenge
+# Install system dependencies: FFmpeg, FFprobe, curl, ca-certificates, and Node.js >=22 LTS via NodeSource
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
     ca-certificates \
-    nodejs \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# Install standalone pre-compiled bgutil-pot binary for Linux x86_64
+RUN curl -fsSL -o /usr/local/bin/bgutil-pot \
+    https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/download/v0.8.1/bgutil-pot-linux-x86_64 \
+    && chmod +x /usr/local/bin/bgutil-pot
 
 # Create non-root user and application directory
 RUN useradd -m -u 1000 -s /bin/bash vibeload
@@ -22,6 +29,10 @@ WORKDIR /app
 # Install python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy entrypoint runner script
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
 # Copy application source code
 COPY app ./app
@@ -39,5 +50,5 @@ EXPOSE 8000 7860
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/api/health || exit 1
 
-# Start FastAPI production server (binds to $PORT dynamically, defaults to 8000)
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start via entrypoint script which launches bgutil-pot server daemon on port 4416 then starts uvicorn
+ENTRYPOINT ["./entrypoint.sh"]

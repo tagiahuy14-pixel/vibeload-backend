@@ -46,6 +46,9 @@ class YtDlpExtractor(BaseExtractor):
             'extractor_args': {
                 'youtube': {
                     'player_client': ['default', 'visionos']
+                },
+                'youtubepot-bgutilhttp': {
+                    'base_url': ['http://127.0.0.1:4416']
                 }
             }
         }
