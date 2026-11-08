@@ -226,7 +226,7 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'js_runtimes': {'node': {}},
         'extractor_args': {
             'youtube': {
-                'player_client': ['visionos', 'android']
+                'player_client': ['visionos']
             }
         }
     }
@@ -317,7 +317,7 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'js_runtimes': {'node': {}},
         'extractor_args': {
             'youtube': {
-                'player_client': ['visionos', 'android']
+                'player_client': ['visionos']
             }
         }
     }
