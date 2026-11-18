@@ -45,7 +45,7 @@ export const PLATFORMS: PlatformItem[] = [
     icon: TikTokIcon,
     capabilities: [
       { icon: Video, text: "Video Full HD sạch không dính logo" },
-      { icon: FolderArchive, text: "Tải trọn bộ Album ảnh (.ZIP 1 lần bấm)" },
+      { icon: FolderArchive, text: "Tải trọn bộ Album ảnh (.ZIP 1 chạm)" },
       { icon: Music, text: "Trích xuất nhạc nền gốc MP3" },
     ],
     description: "Hỗ trợ link tiktok.com, vt.tiktok.com và douyin. Tự động nhận diện video hoặc album ảnh rời.",

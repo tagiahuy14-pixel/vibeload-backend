@@ -6460,53 +6460,6 @@ export default function App() {
 
               </section>
 
-              <section className="card settings-card liquid-glass-settings-card">
-
-                <div className="setting-section-title">
-
-                  <Sparkles size={21} />
-
-                  <h2>Hệ sinh thái Apple · Liquid Glass</h2>
-
-                  <span className="pill neutral settings-badge-right">iOS · iPadOS · macOS</span>
-
-                </div>
-
-                <div className="setting-row">
-
-                  <div>
-
-                    <strong>Tối ưu cho Safari, Màn hình chính & AirDrop</strong>
-
-                    <p>
-
-                      Giao diện kính quang học <strong>Liquid Glass</strong> thích ứng độ sáng môi trường, tôn trọng vùng an toàn Dynamic Island / Home Indicator và hỗ trợ bảng <strong>Chia sẻ hệ thống</strong> để lưu thẳng video/ảnh vào Ứng dụng Ảnh hoặc Tệp.
-
-                    </p>
-
-                  </div>
-
-                  <button
-
-                    type="button"
-
-                    className="button secondary glass-secondary-btn"
-
-                    onClick={() => setDialog("install")}
-
-                  >
-
-                    <span className="btn-icon-col" aria-hidden="true">
-                      <Share2 size={17} />
-                    </span>
-                    <span className="btn-label-col">Hướng dẫn iOS / Mac</span>
-
-                  </button>
-
-                </div>
-
-              </section>
-
               {!applePlatform.isApple && (
                 <section className="card settings-card">
 
