@@ -681,6 +681,8 @@ export default function App() {
 
   const [libraryPlatformFilter, setLibraryPlatformFilter] = useState<string>("all");
 
+  const platformFiltersRef = useRef<HTMLDivElement>(null);
+
   const jsonBackupInputRef = useRef<HTMLInputElement>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -6058,64 +6060,52 @@ export default function App() {
 
                 </div>
 
-                <div className="filters platform-filters" aria-label="Lọc theo nền tảng">
-
+                <div
+                  ref={platformFiltersRef}
+                  className="filters platform-filters"
+                  aria-label="Lọc theo nền tảng"
+                  data-active-platform={libraryPlatformFilter}
+                >
+                  <div className="platform-filters-glass-slider" aria-hidden="true" />
                   {[
-
                     { id: "all", label: "Tất cả nguồn" },
-
                     { id: "tiktok", label: "TikTok" },
-
                     { id: "youtube", label: "YouTube" },
-
                     { id: "pinterest", label: "Pinterest" },
-
                     { id: "soundcloud", label: "SoundCloud" },
-
                     { id: "threads", label: "Threads" },
-
                     { id: "facebook", label: "Facebook" },
-
                   ].map((p) => {
-
                     const count = history.filter(
-
                       (item) => p.id === "all" || getItemPlatform(item.fileName) === p.id,
-
                     ).length;
 
                     return (
-
                       <button
-
                         key={p.id}
-
                         type="button"
-
                         className={libraryPlatformFilter === p.id ? "selected" : ""}
-
                         aria-pressed={libraryPlatformFilter === p.id}
-
-                        onClick={() => {
-
+                        onClick={(e) => {
                           triggerHaptic(10);
-
                           setLibraryPlatformFilter(p.id);
-
+                          const container = platformFiltersRef.current;
+                          const btn = e.currentTarget;
+                          if (container && btn) {
+                            const targetScrollLeft =
+                              btn.offsetLeft - container.clientWidth / 2 + btn.offsetWidth / 2;
+                            container.scrollTo({
+                              left: Math.max(0, targetScrollLeft),
+                              behavior: "smooth",
+                            });
+                          }
                         }}
-
                       >
-
                         {p.label}
-
                         <span>{count}</span>
-
                       </button>
-
                     );
-
                   })}
-
                 </div>
 
                 {visibleItems.length ? (

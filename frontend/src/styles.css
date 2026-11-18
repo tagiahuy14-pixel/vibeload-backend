@@ -2113,15 +2113,19 @@ select {
   font-weight: 660;
 }
 .filters.platform-filters {
-  display: flex;
+  --pf-col: 108px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, var(--pf-col));
   align-items: center;
-  gap: 4px;
+  gap: 0;
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
   padding: 4px;
   margin-top: 0;
   margin-bottom: 20px;
@@ -2132,17 +2136,54 @@ select {
   width: 0;
   height: 0;
 }
+.platform-filters-glass-slider {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: var(--pf-col);
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--blue) 0%, #2997ff 100%);
+  box-shadow:
+    0 4px 14px -3px rgba(0, 113, 227, 0.42),
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.44);
+  pointer-events: none;
+  z-index: 1;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.filters.platform-filters[data-active-platform="all"] .platform-filters-glass-slider {
+  transform: translateX(0%);
+}
+.filters.platform-filters[data-active-platform="tiktok"] .platform-filters-glass-slider {
+  transform: translateX(100%);
+}
+.filters.platform-filters[data-active-platform="youtube"] .platform-filters-glass-slider {
+  transform: translateX(200%);
+}
+.filters.platform-filters[data-active-platform="pinterest"] .platform-filters-glass-slider {
+  transform: translateX(300%);
+}
+.filters.platform-filters[data-active-platform="soundcloud"] .platform-filters-glass-slider {
+  transform: translateX(400%);
+}
+.filters.platform-filters[data-active-platform="threads"] .platform-filters-glass-slider {
+  transform: translateX(500%);
+}
+.filters.platform-filters[data-active-platform="facebook"] .platform-filters-glass-slider {
+  transform: translateX(600%);
+}
 .filters.platform-filters button {
-  flex: 0 0 auto;
-  padding: 8px 14px;
+  width: 100%;
+  padding: 8px 6px;
+  background: transparent !important;
+  box-shadow: none !important;
   color: var(--muted);
 }
 .filters.platform-filters button.selected {
-  background: linear-gradient(135deg, var(--blue) 0%, #2997ff 100%) !important;
+  background: transparent !important;
+  box-shadow: none !important;
   color: #ffffff !important;
-  box-shadow:
-    0 4px 14px -3px rgba(0, 113, 227, 0.4),
-    inset 0 1px 0.5px rgba(255, 255, 255, 0.42) !important;
 }
 .file-row {
   display: flex;
@@ -3343,7 +3384,8 @@ select {
     margin-bottom: 10px;
   }
   .filters.platform-filters {
-    gap: 4px;
+    --pf-col: 104px;
+    gap: 0;
     padding: 4px;
     margin-bottom: 18px;
   }
@@ -3354,9 +3396,9 @@ select {
     min-height: 36px;
   }
   .filters.platform-filters button {
-    padding: 8px 13px;
+    padding: 8px 6px;
     font-size: 10px;
-    gap: 5px;
+    gap: 4px;
     min-height: 36px;
   }
   .file-row {
