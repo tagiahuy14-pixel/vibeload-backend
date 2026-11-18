@@ -14,12 +14,20 @@ DEFAULT_HEADERS = {
 }
 
 
+_CACHED_FFMPEG_LOC: Optional[str] = None
+_FFMPEG_CHECKED = False
+
+
 def find_ffmpeg_location() -> Optional[str]:
+    global _CACHED_FFMPEG_LOC, _FFMPEG_CHECKED
+    if _FFMPEG_CHECKED:
+        return _CACHED_FFMPEG_LOC
+    _FFMPEG_CHECKED = True
     which_ffmpeg = shutil.which("ffmpeg")
     if which_ffmpeg:
         import os
-        return os.path.dirname(which_ffmpeg)
-    return None
+        _CACHED_FFMPEG_LOC = os.path.dirname(which_ffmpeg)
+    return _CACHED_FFMPEG_LOC
 
 
 class YtDlpExtractor(BaseExtractor):
@@ -35,17 +43,25 @@ class YtDlpExtractor(BaseExtractor):
             'logger': ExtractorLogger(),
             'skip_download': True,
             'extract_flat': False,
-            'socket_timeout': 15,
+            'socket_timeout': 10,
+            'retries': 1,
+            'extractor_retries': 1,
             'noplaylist': True,
             'no_color': True,
+            'check_formats': False,
             'writesubtitles': False,
             'writeautomaticsub': False,
             'writeinfojson': False,
+            'writethumbnail': False,
+            'writedescription': False,
+            'writeannotations': False,
+            'getcomments': False,
             'http_headers': DEFAULT_HEADERS,
             'js_runtimes': {'node': {}},
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['default', 'visionos']
+                    'player_client': ['default', 'visionos'],
+                    'skip': ['dash', 'translated_subs'],
                 },
                 'youtubepot-bgutilhttp': {
                     'base_url': ['http://127.0.0.1:4416']

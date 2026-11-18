@@ -153,27 +153,21 @@ import {
 } from "./lib/media";
 
 import {
-
   analyzeWithBackend,
-
+  BackendError,
+  fetchTikTokEdge,
   fetchYouTubeOEmbed,
-
+  getCachedAnalysis,
+  getInFlightAnalysis,
+  prefetchAnalysis,
   startBackendDownload,
-
   pollBackendJob,
-
   cancelBackendJob,
-
   getApiBaseUrl,
-
   getBackendFileUrl,
-
   getBackendPhotoDownloadUrl,
-
   waitForBackend,
-
   type BackendAnalyzeResponse,
-
 } from "./lib/api";
 
 import {
@@ -915,6 +909,18 @@ export default function App() {
 
     setUrl(cleaned);
 
+    if (matches && matches.length === 1 && isPlatformUrl(cleaned) && !checkIncompleteUrl(cleaned)) {
+      triggerPrewarm();
+      try {
+        const normalized = normalizeUrl(cleaned, true).href;
+        if (/tiktok\.com|douyin\.com/i.test(normalized)) {
+          prefetchAnalysis(normalized);
+        }
+      } catch {
+        // Ignore URL normalize errors during typing
+      }
+    }
+
   }
 
 
@@ -1202,71 +1208,72 @@ export default function App() {
     try {
 
       if (isPlatformUrl(url)) {
-
         const normalized = normalizeUrl(url, true).href;
+        const isTikTok = /tiktok\.com|douyin\.com/i.test(normalized);
+        const isYouTube = /youtube\.com|youtu\.be/i.test(normalized);
 
-        await waitForBackend(controller.signal, (seconds) => {
+        let beResult: BackendAnalyzeResponse | null = getCachedAnalysis(normalized);
 
-          setWakeSeconds(seconds);
-
-          setCheckingStatus(
-
-            `Máy chủ Render đang thức giấc từ chế độ ngủ đông (${seconds}s)... Lần tải đầu tiên sau 15 phút cần chút thời gian để khởi động.`,
-
-          );
-
-        });
-
-        setWakeSeconds(0);
-
-        setCheckingStatus("Đã kết nối máy chủ! Đang phân tích phương tiện...");
-
-        const analyzeTimer = setInterval(() => {
-
-          setCheckingStatus((prev) => {
-
-            if (prev?.includes("Đã kết nối máy chủ")) return "Đang trích xuất luồng video/âm thanh chất lượng cao...";
-
-            if (prev?.includes("Đang trích xuất")) return "Đang hoàn tất danh sách định dạng phương tiện...";
-
-            return prev;
-
-          });
-
-        }, 2200);
-
-        let beResult: BackendAnalyzeResponse;
-
-        try {
-
-          beResult = await analyzeWithBackend(normalized, controller.signal);
-
-        } catch (err) {
-
-          if (url.includes("youtube.com") || url.includes("youtu.be")) {
-
-            const oembedResult = await fetchYouTubeOEmbed(url);
-
-            if (oembedResult) {
-
-              beResult = oembedResult;
-
-            } else {
-
-              throw err;
-
-            }
-
-          } else {
-
-            throw err;
-
+        if (!beResult) {
+          const inFlight = getInFlightAnalysis(normalized);
+          if (inFlight) {
+            setCheckingStatus("Đang hoàn tất phân tích siêu tốc...");
+            beResult = await inFlight.catch(() => null);
           }
+        }
 
-        } finally {
+        if (!beResult && isTikTok) {
+          setCheckingStatus("Đang trích xuất siêu tốc qua máy chủ biên (Vercel Edge)...");
+          triggerPrewarm();
+          beResult = await fetchTikTokEdge(normalized, controller.signal);
+        }
 
-          clearInterval(analyzeTimer);
+        if (!beResult) {
+          const ytOEmbedPromise = isYouTube ? fetchYouTubeOEmbed(url) : Promise.resolve(null);
 
+          setCheckingStatus("Đang phân tích phương tiện tốc độ cao...");
+          const analyzeTimer = setInterval(() => {
+            setCheckingStatus((prev) => {
+              if (prev?.includes("Đang phân tích")) return "Đang trích xuất luồng video/âm thanh chất lượng cao...";
+              if (prev?.includes("Đang trích xuất")) return "Đang hoàn tất danh sách định dạng phương tiện...";
+              return prev;
+            });
+          }, 1800);
+
+          try {
+            try {
+              beResult = await analyzeWithBackend(normalized, controller.signal);
+            } catch (firstErr) {
+              const isColdOrNetwork =
+                firstErr instanceof TypeError ||
+                (firstErr instanceof BackendError && [502, 503, 504].includes(firstErr.status));
+              if (!isColdOrNetwork) {
+                throw firstErr;
+              }
+              await waitForBackend(controller.signal, (seconds) => {
+                setWakeSeconds(seconds);
+                setCheckingStatus(
+                  `Máy chủ Render đang thức giấc từ chế độ ngủ đông (${seconds}s)... Lần tải đầu tiên sau 15 phút cần chút thời gian để khởi động.`,
+                );
+              });
+              setWakeSeconds(0);
+              setCheckingStatus("Đã kết nối máy chủ! Đang phân tích phương tiện...");
+              beResult = await analyzeWithBackend(normalized, controller.signal);
+            }
+          } catch (err) {
+            if (isYouTube) {
+              const oembedResult = await ytOEmbedPromise;
+              if (oembedResult) {
+                beResult = oembedResult;
+              } else {
+                throw err;
+              }
+            } else {
+              throw err;
+            }
+          } finally {
+            clearInterval(analyzeTimer);
+          }
         }
 
         if (checkController.current !== controller) return;

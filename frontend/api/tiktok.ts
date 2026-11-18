@@ -95,34 +95,40 @@ export default async function handler(req: Request): Promise<Response> {
   let tikwmData: TikWMResponse | null = null;
   let lastError: string | null = null;
 
-  for (const endpoint of endpoints) {
-    try {
-      const form = new URLSearchParams();
-      form.append("url", cleanUrl);
-      form.append("hd", "1");
+  const queryEndpoint = async (endpoint: string): Promise<TikWMResponse> => {
+    const form = new URLSearchParams();
+    form.append("url", cleanUrl);
+    form.append("hd", "1");
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          Accept: "application/json",
-        },
-        body: form.toString(),
-        signal: AbortSignal.timeout(8000),
-      });
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        Accept: "application/json",
+      },
+      body: form.toString(),
+      signal: AbortSignal.timeout(5000),
+    });
 
-      if (res.ok) {
-        const json = (await res.json()) as TikWMResponse;
-        if (json.code === 0 && json.data) {
-          tikwmData = json;
-          break;
-        } else if (json.msg) {
-          lastError = json.msg;
-        }
-      }
-    } catch (err) {
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const json = (await res.json()) as TikWMResponse;
+    if (json.code === 0 && json.data) {
+      return json;
+    }
+    throw new Error(json.msg || "Nguồn không trả về dữ liệu hợp lệ");
+  };
+
+  try {
+    tikwmData = await Promise.any(endpoints.map((ep) => queryEndpoint(ep)));
+  } catch (err) {
+    if (err instanceof AggregateError && err.errors?.length) {
+      const firstErr = err.errors[0];
+      lastError = firstErr instanceof Error ? firstErr.message : String(firstErr);
+    } else {
       lastError = err instanceof Error ? err.message : String(err);
     }
   }

@@ -1,7 +1,9 @@
 import re
+import threading
+import time
 import urllib.parse
 import urllib.request
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Tuple
 from .tiktok_photos import TikTokPhotoExtractor
 from .threads import ThreadsExtractor
 from .pinterest import PinterestExtractor
@@ -13,6 +15,36 @@ DEFAULT_HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
 }
+
+_ANALYZE_CACHE_TTL_SEC = 300.0
+_ANALYZE_CACHE_MAX_SIZE = 128
+_analyze_cache_lock = threading.Lock()
+_analyze_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+
+
+def _get_cached_result(url: str) -> Optional[Dict[str, Any]]:
+    now = time.monotonic()
+    with _analyze_cache_lock:
+        entry = _analyze_cache.get(url)
+        if not entry:
+            return None
+        expires_at, data = entry
+        if now > expires_at:
+            _analyze_cache.pop(url, None)
+            return None
+        return dict(data)
+
+
+def _set_cached_result(url: str, data: Dict[str, Any]) -> None:
+    if not data or not data.get("success"):
+        return
+    now = time.monotonic()
+    with _analyze_cache_lock:
+        if len(_analyze_cache) >= _ANALYZE_CACHE_MAX_SIZE:
+            oldest_key = next(iter(_analyze_cache), None)
+            if oldest_key:
+                _analyze_cache.pop(oldest_key, None)
+        _analyze_cache[url] = (now + _ANALYZE_CACHE_TTL_SEC, dict(data))
 
 
 def clean_and_normalize_url(raw_url: str) -> str:
@@ -50,19 +82,18 @@ def resolve_redirect_if_needed(url: str) -> str:
         "vm.tiktok.com",
         "on.soundcloud.com",
         "soundcloud.app.goo.gl",
-        "youtu.be",
         "pin.it",
         "v.redd.it",
         "t.co",
     )
     is_share_path = (
-        (host in ("facebook.com", "www.facebook.com") and any(p in url_lower for p in ("/share/", "/reel/", "/watch/"))) or
+        (host in ("facebook.com", "www.facebook.com") and "/share/" in url_lower) or
         (host in ("instagram.com", "www.instagram.com") and "/share/" in url_lower)
     )
     if host in short_hosts or is_share_path:
         try:
             req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
-            with safe_urlopen(req, timeout=8) as resp:
+            with safe_urlopen(req, timeout=5) as resp:
                 resolved = resp.geturl()
                 return validate_platform_url(resolved)
         except Exception:
@@ -78,36 +109,13 @@ class ExtractorRegistry:
         self.ytdlp_extractor = YtDlpExtractor()
 
     def analyze(self, raw_url: str) -> Dict[str, Any]:
-        url = clean_and_normalize_url(raw_url)
-        url = resolve_redirect_if_needed(url)
-        url = clean_and_normalize_url(url)
+        cleaned_raw = clean_and_normalize_url(raw_url)
+        cached = _get_cached_result(cleaned_raw)
+        if cached:
+            return cached
 
-        # 1. Check TikTok Photo album / carousel first
-        if self.tiktok_photo_extractor.can_handle(url):
-            res = self.tiktok_photo_extractor.analyze(url)
-            if res and res.get("status_code") == 403:
-                return res
-            if res and res.get("success"):
-                return res
-
-        # 2. Check Threads (photos & videos)
-        if self.threads_extractor.can_handle(url):
-            res = self.threads_extractor.analyze(url)
-            if res and res.get("success"):
-                return res
-            if res and res.get("status_code") in (403, 404):
-                return res
-
-        # 3. Check Pinterest (photos & videos)
-        if self.pinterest_extractor.can_handle(url):
-            res = self.pinterest_extractor.analyze(url)
-            if res and res.get("success"):
-                return res
-            if res and res.get("status_code") in (403, 404):
-                return res
-
-        # 4. Check for incomplete / truncated YouTube link
-        yt_match = re.search(r'(?:youtu\.be/|youtube\.com/(?:watch\?.*v=|shorts/|embed/))([a-zA-Z0-9_-]+)', url)
+        # 0. Check for incomplete / truncated YouTube link early (before any network call)
+        yt_match = re.search(r'(?:youtu\.be/|youtube\.com/(?:watch\?.*v=|shorts/|embed/))([a-zA-Z0-9_-]+)', cleaned_raw)
         if yt_match:
             vid = yt_match.group(1)
             if len(vid) < 11:
@@ -119,18 +127,52 @@ class ExtractorRegistry:
                     "retryable": False
                 }
 
-        # 5. General extractor via yt-dlp (handles video, soundcloud, facebook, instagram, youtube, tiktok video)
+        # 1. Fast-path for TikTok / Douyin: TikWM API accepts vt.tiktok.com shortlinks directly without pre-resolving redirect!
+        if self.tiktok_photo_extractor.can_handle(cleaned_raw):
+            res = self.tiktok_photo_extractor.analyze(cleaned_raw)
+            if res and res.get("status_code") == 403:
+                return res
+            if res and res.get("success"):
+                _set_cached_result(cleaned_raw, res)
+                if res.get("url"):
+                    _set_cached_result(res["url"], res)
+                return res
+
+        url = resolve_redirect_if_needed(cleaned_raw)
+        url = clean_and_normalize_url(url)
+        if url != cleaned_raw:
+            cached_resolved = _get_cached_result(url)
+            if cached_resolved:
+                return cached_resolved
+
+        # 2. Check Threads (photos & videos)
+        if self.threads_extractor.can_handle(url):
+            res = self.threads_extractor.analyze(url)
+            if res and res.get("success"):
+                _set_cached_result(cleaned_raw, res)
+                _set_cached_result(url, res)
+                return res
+            if res and res.get("status_code") in (403, 404):
+                return res
+
+        # 3. Check Pinterest (photos & videos)
+        if self.pinterest_extractor.can_handle(url):
+            res = self.pinterest_extractor.analyze(url)
+            if res and res.get("success"):
+                _set_cached_result(cleaned_raw, res)
+                _set_cached_result(url, res)
+                return res
+            if res and res.get("status_code") in (403, 404):
+                return res
+
+        # 4. General extractor via yt-dlp (handles video, soundcloud, facebook, instagram, youtube, tiktok fallback)
         res = self.ytdlp_extractor.analyze(url)
         if res.get("success"):
+            _set_cached_result(cleaned_raw, res)
+            _set_cached_result(url, res)
             return res
         if res.get("status_code") in (403, 404):
             return res
-
-        # 6. Fallback for TikTok if yt-dlp encountered captcha or bot block
-        if "tiktok.com" in url.lower() or "douyin.com" in url.lower():
-            fb_res = self.tiktok_photo_extractor._extract_tikwm(url)
-            if fb_res and fb_res.get("success"):
-                return fb_res
 
         return res
 

@@ -18,28 +18,24 @@ DEFAULT_HEADERS = {
 class TikTokPhotoExtractor(BaseExtractor):
     def can_handle(self, url: str) -> bool:
         parsed = urllib.parse.urlparse(url)
-        lower = parsed.path.lower()
         host = (parsed.hostname or "").lower().rstrip(".")
-        is_tiktok = any(host == p or host.endswith("." + p) for p in ("tiktok.com", "douyin.com"))
-        if not is_tiktok:
-            return False
-        return "/photo/" in lower or host in ("vt.tiktok.com", "vm.tiktok.com")
+        return any(host == p or host.endswith("." + p) for p in ("tiktok.com", "douyin.com"))
 
     def analyze(self, url: str) -> Optional[Dict[str, Any]]:
-        # 1. Try direct HTML extraction first
-        res = self._extract_direct(url)
-        if res:
+        # 1. Try fast TikWM JSON API first (~0.8s, supports both video and photo carousels)
+        res = self._extract_tikwm(url)
+        if res and res.get("success"):
             return res
 
-        # 2. Try TikWM fallback
-        return self._extract_tikwm(url)
+        # 2. Fallback to direct HTML extraction (up to 6s)
+        return self._extract_direct(url)
 
     def _extract_direct(self, url: str) -> Optional[Dict[str, Any]]:
         try:
             cj = http.cookiejar.CookieJar()
             opener = urllib.request.build_opener(SafeRedirectHandler(), urllib.request.HTTPCookieProcessor(cj))
             req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
-            with opener.open(req, timeout=12) as resp:
+            with opener.open(req, timeout=6) as resp:
                 final_url = resp.geturl()
                 html = resp.read(4 * 1024 * 1024).decode('utf-8', errors='ignore')
 
@@ -148,7 +144,7 @@ class TikTokPhotoExtractor(BaseExtractor):
                         "Accept": "application/json"
                     }
                 )
-                with urllib.request.urlopen(req, timeout=12) as resp:
+                with urllib.request.urlopen(req, timeout=6) as resp:
                     res = json.loads(resp.read().decode("utf-8"))
                     if res.get("code") == 0 and "data" in res:
                         d = res["data"]

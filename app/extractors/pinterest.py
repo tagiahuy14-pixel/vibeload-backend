@@ -39,28 +39,29 @@ class PinterestExtractor(BaseExtractor):
             except Exception:
                 pass
 
-        # 2. If it is a video pin, try yt-dlp first
-        try:
-            yt_res = self.ytdlp_extractor.analyze(canonical)
-            if yt_res and yt_res.get("success") and yt_res.get("video_options"):
-                return yt_res
-        except Exception:
-            pass
-
-        # 3. Handle image / photo pin
+        # 2. Fetch page HTML + oEmbed first (~0.8s) instead of unconditionally spawning yt-dlp (5-8s)
         pin_id_m = re.search(r'/pin/(\d+)', canonical)
         pin_id = pin_id_m.group(1) if pin_id_m else "pin"
 
         page_html = ""
         try:
             req = urllib.request.Request(canonical, headers=DEFAULT_HEADERS)
-            with safe_urlopen(req, timeout=10) as resp:
+            with safe_urlopen(req, timeout=7) as resp:
                 page_html = resp.read().decode('utf-8', errors='ignore')
-        except Exception as e:
-            # If fetching canonical fails, we will still try oEmbed below
+        except Exception:
             pass
 
-        # Extract title from HTML
+        # If HTML shows a video stream (v1.pinimg.com / .mp4 / .m3u8) or if no pin_id found, use yt-dlp for full video formats
+        has_video_marker = bool(page_html and re.search(r'v1\.pinimg\.com/videos/|\.mp4|\.m3u8|"video_list"', page_html))
+        if has_video_marker:
+            try:
+                yt_res = self.ytdlp_extractor.analyze(canonical)
+                if yt_res and yt_res.get("success") and yt_res.get("video_options"):
+                    return yt_res
+            except Exception:
+                pass
+
+        # 3. Extract title from HTML
         title = f"Pinterest Pin {pin_id}"
         if page_html:
             title_m = re.search(r'<title>(.*?)</title>', page_html)
@@ -76,7 +77,7 @@ class PinterestExtractor(BaseExtractor):
         oembed_url = f"https://www.pinterest.com/oembed.json?url=https://www.pinterest.com/pin/{pin_id}/"
         try:
             o_req = urllib.request.Request(oembed_url, headers=DEFAULT_HEADERS)
-            with safe_urlopen(o_req, timeout=8) as o_resp:
+            with safe_urlopen(o_req, timeout=5) as o_resp:
                 o_data = json.loads(o_resp.read().decode('utf-8', errors='ignore'))
                 thumb = o_data.get('thumbnail_url', '')
                 author = o_data.get('author_name', author)
@@ -120,6 +121,14 @@ class PinterestExtractor(BaseExtractor):
 
         final_img = chosen_url or thumb
         if not final_img:
+            # Final fallback to yt-dlp if HTML did not expose images
+            if not has_video_marker:
+                try:
+                    yt_res = self.ytdlp_extractor.analyze(canonical)
+                    if yt_res and yt_res.get("success") and yt_res.get("video_options"):
+                        return yt_res
+                except Exception:
+                    pass
             return {
                 "success": False,
                 "error": "Không thể trích xuất hình ảnh hoặc video từ bài đăng Pinterest này.",

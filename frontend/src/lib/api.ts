@@ -170,6 +170,46 @@ export async function waitForBackend(
   throw new Error("Không kết nối được backend sau 90 giây. Render có thể đang khởi động hoặc gặp sự cố; hãy thử lại.");
 }
 
+const ANALYZE_CACHE_TTL_MS = 5 * 60 * 1000;
+const ANALYZE_CACHE_MAX_ENTRIES = 64;
+const analyzeCache = new Map<string, { data: BackendAnalyzeResponse; expiresAt: number }>();
+const inFlightAnalyze = new Map<string, Promise<BackendAnalyzeResponse>>();
+
+export function getCachedAnalysis(url: string): BackendAnalyzeResponse | null {
+  const key = url.trim();
+  const cached = analyzeCache.get(key);
+  if (!cached) return null;
+  if (Date.now() > cached.expiresAt) {
+    analyzeCache.delete(key);
+    return null;
+  }
+  return cached.data;
+}
+
+export function clearAnalysisCache(): void {
+  analyzeCache.clear();
+  inFlightAnalyze.clear();
+}
+
+function setCachedAnalysis(url: string, data: BackendAnalyzeResponse): void {
+  if (!data || !data.success) return;
+  const hasRealContent =
+    Boolean(data.title) &&
+    ((Array.isArray(data.video_options) && data.video_options.length > 0) ||
+      (Array.isArray(data.audio_options) && data.audio_options.length > 0) ||
+      (Array.isArray(data.photos) && data.photos.length > 0));
+  if (!hasRealContent) return;
+  const key = url.trim();
+  if (analyzeCache.size >= ANALYZE_CACHE_MAX_ENTRIES) {
+    const oldestKey = analyzeCache.keys().next().value;
+    if (oldestKey) analyzeCache.delete(oldestKey);
+  }
+  analyzeCache.set(key, {
+    data,
+    expiresAt: Date.now() + ANALYZE_CACHE_TTL_MS,
+  });
+}
+
 export async function fetchTikTokEdge(
   url: string,
   signal?: AbortSignal
@@ -178,6 +218,9 @@ export async function fetchTikTokEdge(
     const isTikTok = /tiktok\.com|douyin\.com/i.test(url);
     if (!isTikTok) return null;
 
+    const cached = getCachedAnalysis(url);
+    if (cached) return cached;
+
     const endpoint = typeof window !== "undefined" ? "/api/tiktok" : "";
     if (!endpoint) return null;
 
@@ -185,7 +228,7 @@ export async function fetchTikTokEdge(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
-      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(7000)]) : AbortSignal.timeout(7000),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(5500)]) : AbortSignal.timeout(5500),
     });
 
     if (!res.ok) return null;
@@ -194,6 +237,10 @@ export async function fetchTikTokEdge(
 
     const data = (await res.json()) as BackendAnalyzeResponse;
     if (data && data.success) {
+      setCachedAnalysis(url, data);
+      if (data.url && data.url !== url) {
+        setCachedAnalysis(data.url, data);
+      }
       return data;
     }
     return null;
@@ -206,6 +253,11 @@ export async function analyzeWithBackend(
   url: string,
   signal?: AbortSignal
 ): Promise<BackendAnalyzeResponse> {
+  const cached = getCachedAnalysis(url);
+  if (cached) {
+    return cached;
+  }
+
   // 1. Zero-Cold-Start Vercel Edge Bypass for TikTok (Active in Browser)
   if (typeof window !== "undefined" && /tiktok\.com|douyin\.com/i.test(url)) {
     const edgeResult = await fetchTikTokEdge(url, signal);
@@ -214,7 +266,7 @@ export async function analyzeWithBackend(
     }
   }
 
-  // 2. Standard Render Backend Flow (with cold-start retry)
+  // 2. Standard Render Backend Flow
   const base = getApiBaseUrl();
   const res = await fetch(`${base}/api/analyze`, {
     method: "POST",
@@ -224,7 +276,34 @@ export async function analyzeWithBackend(
   });
 
   await requireApiResponse(res);
-  return (await res.json()) as BackendAnalyzeResponse;
+  const result = (await res.json()) as BackendAnalyzeResponse;
+  setCachedAnalysis(url, result);
+  if (result.url && result.url !== url) {
+    setCachedAnalysis(result.url, result);
+  }
+  return result;
+}
+
+export function prefetchAnalysis(url: string): void {
+  const key = url.trim();
+  if (!key || getCachedAnalysis(key) || inFlightAnalyze.has(key)) return;
+  const promise = (async () => {
+    try {
+      if (typeof window !== "undefined" && /tiktok\.com|douyin\.com/i.test(key)) {
+        const edge = await fetchTikTokEdge(key);
+        if (edge) return edge;
+      }
+      return await analyzeWithBackend(key);
+    } finally {
+      inFlightAnalyze.delete(key);
+    }
+  })();
+  inFlightAnalyze.set(key, promise);
+  promise.catch(() => {});
+}
+
+export function getInFlightAnalysis(url: string): Promise<BackendAnalyzeResponse> | null {
+  return inFlightAnalyze.get(url.trim()) || null;
 }
 
 export async function startBackendDownload(
