@@ -1,0 +1,7 @@
+﻿storage/
+__pycache__/
+*.pyc
+frontend/node_modules/
+frontend/dist/
+frontend/.vercel/
+frontend/test-results/

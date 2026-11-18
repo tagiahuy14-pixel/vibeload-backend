@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vercel/
+test-results/
+playwright-report/
+.qa/
+.cache/
+*.local
+
+.vercel
+.env*

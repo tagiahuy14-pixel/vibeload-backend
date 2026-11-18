@@ -1,0 +1,11 @@
+.cache/
+node_modules/
+.qa/
+test-results/
+playwright-report/
+coverage/
+dist/
+*.apk
+*.zip
+.git/
+.env*.local
