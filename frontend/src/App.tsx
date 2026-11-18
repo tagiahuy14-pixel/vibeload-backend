@@ -115,7 +115,6 @@ import { AudioTrimmerModal } from "./components/AudioTrimmerModal";
 import { QRCodeModal } from "./components/QRCodeModal";
 
 import {
-  LiquidGlassRefractionDemo,
   LiquidTouchSpecularLayer,
 } from "./components/LiquidGlassShowcase";
 
@@ -2833,8 +2832,12 @@ export default function App() {
 
         <p className="nav-label">KHÔNG GIAN CỦA BẠN</p>
 
-        <nav aria-label="Điều hướng chính">
-
+        <nav
+          className="nav-group"
+          aria-label="Điều hướng chính"
+          data-active-route={route}
+        >
+          <div className="sidebar-glass-slider" aria-hidden="true" />
           {routes.map((item) => (
 
             <a
@@ -4567,8 +4570,6 @@ export default function App() {
 
                         </div>
 
-                        <LiquidGlassRefractionDemo compact />
-
                       </div>
 
                     ) : (
@@ -4781,8 +4782,13 @@ export default function App() {
 
                             <>
 
-                              <div className="type-toggle-group">
-
+                              <div
+                                className="type-toggle-group"
+                                data-active-type={selectedDownloadType}
+                              >
+                                {backendData.video_options.length > 0 && backendData.audio_options.length > 0 && (
+                                  <div className="type-toggle-glass-slider" aria-hidden="true" />
+                                )}
                                 {backendData.video_options.length > 0 && (
 
                                   <button
@@ -6004,8 +6010,12 @@ export default function App() {
 
                 </div>
 
-                <div className="filters" aria-label="Lọc loại tệp">
-
+                <div
+                  className="filters"
+                  aria-label="Lọc loại tệp"
+                  data-active-filter={filter}
+                >
+                  <div className="filters-glass-slider" aria-hidden="true" />
                   {(["all", "video", "audio", "image"] as const).map((kind) => (
 
                     <button
@@ -6178,8 +6188,11 @@ export default function App() {
 
                 </div>
 
-                <div className="theme-options">
-
+                <div
+                  className="theme-options"
+                  data-active-theme={settings.theme}
+                >
+                  <div className="theme-options-glass-slider" aria-hidden="true" />
                   {(
 
                     [
@@ -6492,8 +6505,6 @@ export default function App() {
 
                 </div>
 
-                <LiquidGlassRefractionDemo />
-
               </section>
 
               {!applePlatform.isApple && (
@@ -6621,8 +6632,12 @@ export default function App() {
 
       </div>
 
-      <nav className="mobile-nav" aria-label="Điều hướng di động">
-
+      <nav
+        className="mobile-nav"
+        aria-label="Điều hướng di động"
+        data-active-route={route}
+      >
+        <div className="mobile-nav-glass-slider" aria-hidden="true" />
         {routes.map((item) => (
 
           <a
