@@ -114,6 +114,11 @@ import { AudioTrimmerModal } from "./components/AudioTrimmerModal";
 
 import { QRCodeModal } from "./components/QRCodeModal";
 
+import {
+  LiquidGlassRefractionDemo,
+  LiquidTouchSpecularLayer,
+} from "./components/LiquidGlassShowcase";
+
 import { triggerHaptic } from "./lib/haptic";
 
 import {
@@ -3930,7 +3935,7 @@ export default function App() {
 
                         <>
 
-                          <div className="unsupported-actions">
+                          <div className="unsupported-actions glass-action-group">
 
                             {getAppDeepLink(url) && (
 
@@ -3938,13 +3943,16 @@ export default function App() {
 
                                 href={getAppDeepLink(url)!}
 
-                                className="deep-link-action"
+                                className="deep-link-action glass-secondary-btn"
 
                                 title="Mở trực tiếp liên kết trong ứng dụng gốc"
 
                               >
 
-                                Mở trong App gốc <Smartphone size={13} />
+                                <span className="btn-icon-col" aria-hidden="true">
+                                  <Smartphone size={13} />
+                                </span>
+                                <span className="btn-label-col">Mở trong App gốc</span>
 
                               </a>
 
@@ -3960,9 +3968,14 @@ export default function App() {
 
                                 rel="noopener noreferrer"
 
+                                className="web-fallback-action glass-secondary-btn"
+
                               >
 
-                                Mở nội dung gốc <ExternalLink size={13} />
+                                <span className="btn-icon-col" aria-hidden="true">
+                                  <ExternalLink size={13} />
+                                </span>
+                                <span className="btn-label-col">Mở nội dung gốc</span>
 
                               </a>
 
@@ -3976,9 +3989,14 @@ export default function App() {
 
                               rel="noopener noreferrer"
 
+                              className="apk-bridge-action glass-secondary-btn"
+
                             >
 
-                              Tải VibeLoad Android APK (v1.0.16) <ExternalLink size={13} />
+                              <span className="btn-icon-col" aria-hidden="true">
+                                <Download size={13} />
+                              </span>
+                              <span className="btn-label-col">Tải VibeLoad Android APK (v1.0.16)</span>
 
                             </a>
 
@@ -4210,7 +4228,7 @@ export default function App() {
 
                               type="button"
 
-                              className="qr-chip-button"
+                              className="qr-chip-button glass-secondary-btn"
 
                               onClick={() => void downloadThumbnail(backendData.thumbnail, backendData.title)}
 
@@ -4218,7 +4236,10 @@ export default function App() {
 
                             >
 
-                              <Image size={13} /> Tải ảnh bìa HD
+                              <span className="btn-icon-col" aria-hidden="true">
+                                <Image size={13} />
+                              </span>
+                              <span className="btn-label-col">Tải ảnh bìa HD</span>
 
                             </button>
 
@@ -4228,7 +4249,7 @@ export default function App() {
 
                             type="button"
 
-                            className="qr-chip-button"
+                            className="qr-chip-button glass-secondary-btn"
 
                             onClick={() => setQrModalData({ url: backendData.url, title: backendData.title })}
 
@@ -4236,7 +4257,10 @@ export default function App() {
 
                           >
 
-                            <QrCode size={13} /> Quét sang điện thoại
+                            <span className="btn-icon-col" aria-hidden="true">
+                              <QrCode size={13} />
+                            </span>
+                            <span className="btn-label-col">Quét sang điện thoại</span>
 
                           </button>
 
@@ -4246,13 +4270,16 @@ export default function App() {
 
                               href={getAppDeepLink(backendData.url)!}
 
-                              className="qr-chip-button"
+                              className="qr-chip-button glass-secondary-btn"
 
                               title="Mở nội dung trong ứng dụng di động gốc"
 
                             >
 
-                              <Smartphone size={13} /> Mở trong App gốc
+                              <span className="btn-icon-col" aria-hidden="true">
+                                <Smartphone size={13} />
+                              </span>
+                              <span className="btn-label-col">Mở trong App gốc</span>
 
                             </a>
 
@@ -4357,7 +4384,7 @@ export default function App() {
 
                             <>
 
-                              <div className="inline-preview-header" style={{ marginTop: previewAudioUrl ? 8 : 0 }}>
+                              <div className={`inline-preview-header ${previewAudioUrl ? "has-top-gap" : ""}`}>
 
                                 <span>🎬 Xem trước video:</span>
 
@@ -4422,7 +4449,7 @@ export default function App() {
 
                       <div className="zero-options-container">
 
-                        <div className="feedback warning" style={{ marginTop: 12, marginBottom: 14 }}>
+                        <div className="feedback warning zero-options-warning">
 
                           <Info size={19} />
 
@@ -4436,7 +4463,7 @@ export default function App() {
 
                             </p>
 
-                            <div className="unsupported-actions" style={{ marginTop: 10, gap: 10 }}>
+                            <div className="unsupported-actions glass-action-group">
 
                               {getAppDeepLink(backendData.url) && (
 
@@ -4444,11 +4471,14 @@ export default function App() {
 
                                   href={getAppDeepLink(backendData.url)!}
 
-                                  className="deep-link-action"
+                                  className="deep-link-action glass-secondary-btn"
 
                                 >
 
-                                  <Smartphone size={14} /> Mở trong App YouTube
+                                  <span className="btn-icon-col" aria-hidden="true">
+                                    <Smartphone size={14} />
+                                  </span>
+                                  <span className="btn-label-col">Mở trong App YouTube</span>
 
                                 </a>
 
@@ -4462,11 +4492,14 @@ export default function App() {
 
                                 rel="noopener noreferrer"
 
-                                className="apk-bridge-action"
+                                className="apk-bridge-action glass-secondary-btn"
 
                               >
 
-                                <Download size={14} /> Tải VibeLoad Android APK (v1.0.16)
+                                <span className="btn-icon-col" aria-hidden="true">
+                                  <Download size={14} />
+                                </span>
+                                <span className="btn-label-col">Tải VibeLoad Android APK (v1.0.16)</span>
 
                               </a>
 
@@ -4480,13 +4513,16 @@ export default function App() {
 
                                   rel="noopener noreferrer"
 
-                                  className="web-fallback-action"
+                                  className="web-fallback-action glass-secondary-btn"
 
                                   title="Mở trình tải video dự phòng trên trình duyệt web"
 
                                 >
 
-                                  <ExternalLink size={13} /> Tải video trên Web (Dự phòng)
+                                  <span className="btn-icon-col" aria-hidden="true">
+                                    <ExternalLink size={13} />
+                                  </span>
+                                  <span className="btn-label-col">Tải video trên Web (Dự phòng)</span>
 
                                 </a>
 
@@ -4514,7 +4550,7 @@ export default function App() {
 
                             type="button"
 
-                            className="button primary full-width"
+                            className="button primary full-width thumb-cta-button"
 
                             disabled={!backendData.thumbnail}
 
@@ -4522,11 +4558,16 @@ export default function App() {
 
                           >
 
-                            <Image size={18} /> Tải ảnh bìa Full HD (MaxRes 1920x1080)
+                            <span className="btn-icon-col" aria-hidden="true">
+                              <Image size={18} />
+                            </span>
+                            <span className="btn-label-col">Tải ảnh bìa Full HD</span>
 
                           </button>
 
                         </div>
+
+                        <LiquidGlassRefractionDemo compact />
 
                       </div>
 
@@ -6383,7 +6424,7 @@ export default function App() {
 
                   <button
 
-                    className="button secondary"
+                    className="button secondary glass-secondary-btn"
 
                     onClick={() =>
 
@@ -6393,9 +6434,12 @@ export default function App() {
 
                   >
 
-                    <Plus size={17} />
-
-                    {pwa.installed ? "Hướng dẫn" : "Cài ứng dụng"}
+                    <span className="btn-icon-col" aria-hidden="true">
+                      <Plus size={17} />
+                    </span>
+                    <span className="btn-label-col">
+                      {pwa.installed ? "Hướng dẫn" : "Cài ứng dụng"}
+                    </span>
 
                   </button>
 
@@ -6403,7 +6447,7 @@ export default function App() {
 
               </section>
 
-              <section className="card settings-card">
+              <section className="card settings-card liquid-glass-settings-card">
 
                 <div className="setting-section-title">
 
@@ -6433,19 +6477,22 @@ export default function App() {
 
                     type="button"
 
-                    className="button secondary"
+                    className="button secondary glass-secondary-btn"
 
                     onClick={() => setDialog("install")}
 
                   >
 
-                    <Share2 size={17} />
-
-                    Hướng dẫn iOS / Mac
+                    <span className="btn-icon-col" aria-hidden="true">
+                      <Share2 size={17} />
+                    </span>
+                    <span className="btn-label-col">Hướng dẫn iOS / Mac</span>
 
                   </button>
 
                 </div>
+
+                <LiquidGlassRefractionDemo />
 
               </section>
 
@@ -6480,7 +6527,7 @@ export default function App() {
 
                       href="https://github.com/tagiahuy14-pixel/vibeload-app/releases/download/v1.0.16/app-release.apk"
 
-                      className="button primary"
+                      className="button secondary glass-secondary-btn"
 
                       target="_blank"
 
@@ -6488,7 +6535,10 @@ export default function App() {
 
                     >
 
-                      <Download size={17} /> Tải APK v1.0.16
+                      <span className="btn-icon-col" aria-hidden="true">
+                        <Download size={17} />
+                      </span>
+                      <span className="btn-label-col">Tải APK v1.0.16</span>
 
                     </a>
 
@@ -6974,6 +7024,8 @@ export default function App() {
         />
 
       )}
+
+      <LiquidTouchSpecularLayer />
 
     </div>
 
