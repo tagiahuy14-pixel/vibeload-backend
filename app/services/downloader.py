@@ -227,7 +227,7 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'js_runtimes': {'node': {}},
         'extractor_args': {
             'youtube': {
-                'player_client': ['default', 'visionos']
+                'player_client': ['ios', 'android']
             },
             'youtubepot-bgutilhttp': {
                 'base_url': ['http://127.0.0.1:4416']
@@ -324,7 +324,7 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'js_runtimes': {'node': {}},
         'extractor_args': {
             'youtube': {
-                'player_client': ['default', 'visionos']
+                'player_client': ['ios', 'android']
             },
             'youtubepot-bgutilhttp': {
                 'base_url': ['http://127.0.0.1:4416']
@@ -393,7 +393,7 @@ def _emergency_audio_merge(video_path: Path, target_url: str, ffmpeg_loc: Option
             'js_runtimes': {'node': {}},
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['default', 'visionos']
+                    'player_client': ['ios', 'android']
                 },
                 'youtubepot-bgutilhttp': {
                     'base_url': ['http://127.0.0.1:4416']

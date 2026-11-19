@@ -60,7 +60,7 @@ class YtDlpExtractor(BaseExtractor):
             'js_runtimes': {'node': {}},
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['default', 'visionos'],
+                    'player_client': ['ios', 'android'],
                     'skip': ['dash', 'translated_subs'],
                 },
                 'youtubepot-bgutilhttp': {

@@ -913,9 +913,9 @@ export default function App() {
       triggerPrewarm();
       try {
         const normalized = normalizeUrl(cleaned, true).href;
-        if (/tiktok\.com|douyin\.com/i.test(normalized)) {
-          prefetchAnalysis(normalized);
-        }
+        // Start extraction as soon as a valid link is pasted so analysis is
+        // already in flight when the user presses the download button.
+        prefetchAnalysis(normalized);
       } catch {
         // Ignore URL normalize errors during typing
       }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { analyzeWithBackend, getApiBaseUrl, pollBackendJob, waitForBackend } from "./api";
+import { analyzeWithBackend, getApiBaseUrl, pollBackendJob, prefetchAnalysis, waitForBackend } from "./api";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
 
@@ -7,6 +7,16 @@ describe("backend connection", () => {
   it("uses the configured HTTPS URL and trims whitespace", () => {
     vi.stubEnv("VITE_API_BASE_URL", " https://backend.example/ ");
     expect(getApiBaseUrl()).toBe("https://backend.example");
+  });
+
+  it("prefetches analysis for a YouTube URL before the download action", async () => {
+    vi.stubEnv("VITE_API_URL", "https://backend.example");
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ success: true, url: "https://youtu.be/abcdefghijk", title: "Video", thumbnail: "", uploader: "Creator", duration: 1, platform: "youtube", is_photo_album: false, is_audio_only: false, video_options: [], audio_options: [], photos: [] }));
+    vi.stubGlobal("fetch", fetcher);
+
+    prefetchAnalysis("https://youtu.be/abcdefghijk");
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    expect(fetcher.mock.calls[0][0]).toBe("https://backend.example/api/analyze");
   });
 
   it("fails explicitly if production backend is missing", () => {
