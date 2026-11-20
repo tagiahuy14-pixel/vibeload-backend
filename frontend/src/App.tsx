@@ -3493,8 +3493,6 @@ export default function App() {
 
                         changeUrl(event.target.value);
 
-                        triggerPrewarm();
-
                       }}
 
                       aria-describedby="url-help"
