@@ -2965,7 +2965,7 @@ export default function App() {
 
           <span className="version">
 
-            VibeLoad Web <span>v1.0.16</span>
+            VibeLoad Web <span>v1.0.24</span>
 
           </span>
 
@@ -3855,7 +3855,7 @@ export default function App() {
 
                           <a
 
-                            href="https://github.com/tagiahuy14-pixel/vibeload-app/releases/download/v1.0.16/app-release.apk"
+                            href="https://github.com/tagiahuy14-pixel/vibeload-app/releases/download/v1.0.24/app-release.apk"
 
                             target="_blank"
 
@@ -3993,7 +3993,7 @@ export default function App() {
 
                             <a
 
-                              href="https://github.com/tagiahuy14-pixel/vibeload-app/releases/download/v1.0.16/app-release.apk"
+                              href="https://github.com/tagiahuy14-pixel/vibeload-app/releases/download/v1.0.24/app-release.apk"
 
                               target="_blank"
 
@@ -4006,7 +4006,7 @@ export default function App() {
                               <span className="btn-icon-col" aria-hidden="true">
                                 <Download size={13} />
                               </span>
-                              <span className="btn-label-col">Tải VibeLoad Android APK (v1.0.16)</span>
+                              <span className="btn-label-col">Tải VibeLoad Android APK (v1.0.24)</span>
 
                             </a>
 
@@ -4496,7 +4496,7 @@ export default function App() {
 
                               <a
 
-                                href="https://github.com/tagiahuy14-pixel/vibeload-app/releases/download/v1.0.16/app-release.apk"
+                                href="https://github.com/tagiahuy14-pixel/vibeload-app/releases/download/v1.0.24/app-release.apk"
 
                                 target="_blank"
 
@@ -4509,7 +4509,7 @@ export default function App() {
                                 <span className="btn-icon-col" aria-hidden="true">
                                   <Download size={14} />
                                 </span>
-                                <span className="btn-label-col">Tải VibeLoad Android APK (v1.0.16)</span>
+                                <span className="btn-label-col">Tải VibeLoad Android APK (v1.0.24)</span>
 
                               </a>
 
@@ -6464,7 +6464,7 @@ export default function App() {
 
                     <h2>Ứng dụng Android (VibeLoad App)</h2>
 
-                    <span className="pill neutral settings-badge-right">v1.0.16</span>
+                    <span className="pill neutral settings-badge-right">v1.0.24</span>
 
                   </div>
 
@@ -6476,7 +6476,7 @@ export default function App() {
 
                       <p>
 
-                        Bản cập nhật <strong>v1.0.16</strong>: Cải tiến giao diện nút chọn chất lượng siêu nổi bật (viền 2dp, badge tích xanh), bộ làm sạch tên file lưu trữ thông minh và cài làm nhạc chuông/báo thức 1 chạm.
+                        Bản cập nhật <strong>v1.0.24</strong>: Thiết kế Apple Liquid Glass toàn diện, thanh điều hướng Dock nổi với cử chỉ vuốt mượt mà, tải trực tiếp trên thiết bị siêu tốc và bảo vệ tối đa quyền riêng tư.
 
                       </p>
 
@@ -6484,7 +6484,7 @@ export default function App() {
 
                     <a
 
-                      href="https://github.com/tagiahuy14-pixel/vibeload-app/releases/download/v1.0.16/app-release.apk"
+                      href="https://github.com/tagiahuy14-pixel/vibeload-app/releases/download/v1.0.24/app-release.apk"
 
                       className="button secondary glass-secondary-btn"
 
@@ -6497,7 +6497,7 @@ export default function App() {
                       <span className="btn-icon-col" aria-hidden="true">
                         <Download size={17} />
                       </span>
-                      <span className="btn-label-col">Tải APK v1.0.16</span>
+                      <span className="btn-label-col">Tải APK v1.0.24</span>
 
                     </a>
 
@@ -6514,7 +6514,7 @@ export default function App() {
 
                   <h2>
 
-                    VibeLoad Web <span>v1.0.16</span>
+                    VibeLoad Web <span>v1.0.24</span>
 
                   </h2>
 
