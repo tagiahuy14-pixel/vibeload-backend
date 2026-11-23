@@ -1246,7 +1246,7 @@ export default function App() {
             } catch (firstErr) {
               const isColdOrNetwork =
                 firstErr instanceof TypeError ||
-                (firstErr instanceof BackendError && [502, 503, 504].includes(firstErr.status));
+                (firstErr instanceof BackendError && [502, 503, 504].includes(firstErr.status) && !firstErr.code);
               if (!isColdOrNetwork) {
                 throw firstErr;
               }
