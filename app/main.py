@@ -102,7 +102,7 @@ def get_health():
     return {
         "status": "ok",
         "service": "vibeload-backend",
-        "version": "1.0.26",
+        "version": "1.0.27",
         "has_youtube_cookies": cookie_file is not None
     }
 
