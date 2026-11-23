@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 import yt_dlp
 from .base import BaseExtractor
 from ..services.extractor_diagnostics import ExtractorLogger, classify_extractor_error, log_extractor_failure
-from ..services.ffmpeg_service import get_node_path
+from ..services.ffmpeg_service import get_node_path, is_pot_provider_active
 
 
 DEFAULT_HEADERS = {
@@ -41,14 +41,20 @@ class YtDlpExtractor(BaseExtractor):
         cookie_file = get_youtube_cookies_path()
         node_loc = get_node_path()
 
-        youtube_args = {
+        youtube_args: Dict[str, Any] = {
             'skip': ['dash', 'translated_subs'],
         }
-        if cookie_file:
-            # Browser cookies are supported by web/mweb clients. 'ios' and 'android' reject cookies in yt-dlp.
-            youtube_args['player_client'] = ['web', 'mweb']
-        else:
+        # Only constrain player_client when NO cookies are provided to bypass web bot checks on headless servers
+        if not cookie_file:
             youtube_args['player_client'] = ['ios', 'android']
+
+        extractor_args: Dict[str, Any] = {
+            'youtube': youtube_args
+        }
+        if is_pot_provider_active():
+            extractor_args['youtubepot-bgutilhttp'] = {
+                'base_url': ['http://127.0.0.1:4416']
+            }
 
         ydl_opts = {
             'quiet': True,
@@ -71,12 +77,7 @@ class YtDlpExtractor(BaseExtractor):
             'getcomments': False,
             'http_headers': DEFAULT_HEADERS,
             'js_runtimes': {'node': {'path': node_loc}} if node_loc else {'node': {}},
-            'extractor_args': {
-                'youtube': youtube_args,
-                'youtubepot-bgutilhttp': {
-                    'base_url': ['http://127.0.0.1:4416']
-                }
-            }
+            'extractor_args': extractor_args
         }
         if ffmpeg_loc:
             ydl_opts['ffmpeg_location'] = ffmpeg_loc

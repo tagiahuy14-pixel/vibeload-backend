@@ -97,7 +97,14 @@ def get_root():
 
 @app.get("/api/health")
 def get_health():
-    return {"status": "ok", "service": "vibeload-backend"}
+    from .config import get_youtube_cookies_path
+    cookie_file = get_youtube_cookies_path()
+    return {
+        "status": "ok",
+        "service": "vibeload-backend",
+        "version": "1.0.26",
+        "has_youtube_cookies": cookie_file is not None
+    }
 
 
 @app.get("/api/system/status", response_model=HealthResponse)
@@ -129,10 +136,10 @@ def analyze_media(req: AnalyzeRequest):
 
     if not result.get("success"):
         raise HTTPException(
-            status_code=result.get("status_code", 502),
+            status_code=result.get("status_code", 422),
             detail={"code": result.get("error_code", "MEDIA_EXTRACTION_FAILED"),
                     "message": result.get("error") or "Không thể phân tích phương tiện từ liên kết này.",
-                    "retryable": result.get("retryable")}
+                    "retryable": result.get("retryable", False)}
         )
 
     return AnalyzeResponse(

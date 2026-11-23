@@ -34,6 +34,16 @@ def get_node_path() -> Optional[str]:
     return None
 
 
+def is_pot_provider_active() -> bool:
+    try:
+        import socket
+        with socket.create_connection(("127.0.0.1", 4416), timeout=0.1):
+            return True
+    except Exception:
+        return False
+
+
+
 
 def verify_media_streams(file_path: str) -> Dict[str, Any]:
     """
