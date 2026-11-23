@@ -51,7 +51,10 @@ class YtDlpExtractor(BaseExtractor):
         extractor_args: Dict[str, Any] = {
             'youtube': youtube_args
         }
-        if is_pot_provider_active():
+        # CRITICAL: Only use bgutil POT when NO cookie_file is provided.
+        # When authentic browser cookies are provided, bgutil-pot generates a guest datacenter PO Token
+        # that invalidates the session and triggers YouTube bot verification.
+        if not cookie_file and is_pot_provider_active():
             extractor_args['youtubepot-bgutilhttp'] = {
                 'base_url': ['http://127.0.0.1:4416']
             }
@@ -75,10 +78,13 @@ class YtDlpExtractor(BaseExtractor):
             'writedescription': False,
             'writeannotations': False,
             'getcomments': False,
-            'http_headers': DEFAULT_HEADERS,
             'js_runtimes': {'node': {'path': node_loc}} if node_loc else {'node': {}},
             'extractor_args': extractor_args
         }
+        is_youtube = 'youtube.com' in url.lower() or 'youtu.be' in url.lower()
+        if not is_youtube:
+            ydl_opts['http_headers'] = DEFAULT_HEADERS
+
         if ffmpeg_loc:
             ydl_opts['ffmpeg_location'] = ffmpeg_loc
         if cookie_file:

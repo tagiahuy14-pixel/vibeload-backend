@@ -222,7 +222,7 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
     extractor_args = {
         'youtube': youtube_args
     }
-    if is_pot_provider_active():
+    if not cookie_file and is_pot_provider_active():
         extractor_args['youtubepot-bgutilhttp'] = {
             'base_url': ['http://127.0.0.1:4416']
         }
@@ -239,10 +239,13 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'retries': 2,
         'socket_timeout': settings.SOCKET_TIMEOUT,
         'progress_hooks': [hook],
-        'http_headers': DEFAULT_HEADERS,
         'js_runtimes': {'node': {'path': node_loc}} if node_loc else {'node': {}},
         'extractor_args': extractor_args
     }
+    is_youtube = 'youtube.com' in target_url.lower() or 'youtu.be' in target_url.lower()
+    if not is_youtube:
+        ydl_opts['http_headers'] = DEFAULT_HEADERS
+
     if ffmpeg_loc:
         ydl_opts['ffmpeg_location'] = os.path.dirname(ffmpeg_loc)
     if cookie_file:
@@ -326,7 +329,7 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
     extractor_args = {
         'youtube': youtube_args
     }
-    if is_pot_provider_active():
+    if not cookie_file and is_pot_provider_active():
         extractor_args['youtubepot-bgutilhttp'] = {
             'base_url': ['http://127.0.0.1:4416']
         }
@@ -343,11 +346,14 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'retries': 2,
         'socket_timeout': settings.SOCKET_TIMEOUT,
         'progress_hooks': [hook],
-        'http_headers': DEFAULT_HEADERS,
         'merge_output_format': 'mp4',
         'js_runtimes': {'node': {'path': node_loc}} if node_loc else {'node': {}},
         'extractor_args': extractor_args
     }
+    is_youtube = 'youtube.com' in target_url.lower() or 'youtu.be' in target_url.lower()
+    if not is_youtube:
+        ydl_opts['http_headers'] = DEFAULT_HEADERS
+
     if ffmpeg_loc:
         ydl_opts['ffmpeg_location'] = os.path.dirname(ffmpeg_loc)
     if cookie_file:
