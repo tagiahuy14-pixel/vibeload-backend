@@ -12,7 +12,7 @@ from ..schemas import DownloadRequest, DownloadType, FileInfo
 from ..security import sanitize_filename, safe_urlopen
 from ..storage import get_job_dir
 from ..workers.jobs import DownloadJob
-from .ffmpeg_service import verify_media_streams, convert_to_mp3, get_ffmpeg_path
+from .ffmpeg_service import verify_media_streams, convert_to_mp3, get_ffmpeg_path, get_node_path
 from .zip_service import create_photo_zip
 from .extractor_diagnostics import ExtractorLogger, classify_extractor_error
 from ..extractors.registry import clean_and_normalize_url, resolve_redirect_if_needed, registry
@@ -211,6 +211,16 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
             pct = (downloaded / total * 80.0) if total > 0 else 0.0
             job.update_progress(pct, speed, downloaded, total, eta)
 
+    cookie_file = get_youtube_cookies_path()
+    node_loc = get_node_path()
+    youtube_args = {
+        'skip': ['dash', 'translated_subs'],
+    }
+    if cookie_file:
+        youtube_args['player_client'] = ['web', 'mweb']
+    else:
+        youtube_args['player_client'] = ['ios', 'android']
+
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': raw_output_tmpl,
@@ -224,11 +234,9 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'socket_timeout': settings.SOCKET_TIMEOUT,
         'progress_hooks': [hook],
         'http_headers': DEFAULT_HEADERS,
-        'js_runtimes': {'node': {}},
+        'js_runtimes': {'node': {'path': node_loc}} if node_loc else {'node': {}},
         'extractor_args': {
-            'youtube': {
-                'player_client': ['ios', 'android']
-            },
+            'youtube': youtube_args,
             'youtubepot-bgutilhttp': {
                 'base_url': ['http://127.0.0.1:4416']
             }
@@ -236,7 +244,6 @@ def _handle_audio_download(job: DownloadJob, request: DownloadRequest, job_dir: 
     }
     if ffmpeg_loc:
         ydl_opts['ffmpeg_location'] = os.path.dirname(ffmpeg_loc)
-    cookie_file = get_youtube_cookies_path()
     if cookie_file:
         ydl_opts['cookiefile'] = cookie_file
 
@@ -307,6 +314,16 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
     if '+' not in format_spec and not format_spec.endswith('/best'):
         format_spec = f"{format_spec}+bestaudio/{format_spec}/best"
 
+    cookie_file = get_youtube_cookies_path()
+    node_loc = get_node_path()
+    youtube_args = {
+        'skip': ['dash', 'translated_subs'],
+    }
+    if cookie_file:
+        youtube_args['player_client'] = ['web', 'mweb']
+    else:
+        youtube_args['player_client'] = ['ios', 'android']
+
     ydl_opts = {
         'format': format_spec,
         'outtmpl': output_tmpl,
@@ -321,11 +338,9 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
         'progress_hooks': [hook],
         'http_headers': DEFAULT_HEADERS,
         'merge_output_format': 'mp4',
-        'js_runtimes': {'node': {}},
+        'js_runtimes': {'node': {'path': node_loc}} if node_loc else {'node': {}},
         'extractor_args': {
-            'youtube': {
-                'player_client': ['ios', 'android']
-            },
+            'youtube': youtube_args,
             'youtubepot-bgutilhttp': {
                 'base_url': ['http://127.0.0.1:4416']
             }
@@ -333,7 +348,6 @@ def _handle_video_download(job: DownloadJob, request: DownloadRequest, job_dir: 
     }
     if ffmpeg_loc:
         ydl_opts['ffmpeg_location'] = os.path.dirname(ffmpeg_loc)
-    cookie_file = get_youtube_cookies_path()
     if cookie_file:
         ydl_opts['cookiefile'] = cookie_file
 

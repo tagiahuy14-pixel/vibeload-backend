@@ -69,12 +69,17 @@ _COOKIES_PATH = None
 
 def get_youtube_cookies_path():
     global _COOKIES_PATH
-    raw = (settings.YOUTUBE_COOKIES or "").strip()
-    if not raw:
-        return None
     import os
     if _COOKIES_PATH and os.path.exists(_COOKIES_PATH):
         return _COOKIES_PATH
+
+    raw = (settings.YOUTUBE_COOKIES or "").strip()
+    default_file = Path(settings.STORAGE_DIR) / "config" / "youtube_cookies.txt"
+    if not raw:
+        if default_file.is_file():
+            _COOKIES_PATH = str(default_file)
+            return _COOKIES_PATH
+        return None
     if os.path.isfile(raw):
         _COOKIES_PATH = raw
         return _COOKIES_PATH

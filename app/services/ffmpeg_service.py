@@ -23,6 +23,18 @@ def get_ffprobe_path() -> Optional[str]:
     return None
 
 
+def get_node_path() -> Optional[str]:
+    which_node = shutil.which("node")
+    if which_node:
+        return which_node
+    if sys.platform == "win32":
+        for p in [r"C:\Program Files\nodejs\node.exe", r"C:\Program Files (x86)\nodejs\node.exe"]:
+            if os.path.exists(p):
+                return p
+    return None
+
+
+
 def verify_media_streams(file_path: str) -> Dict[str, Any]:
     """
     Verify audio and video streams of the downloaded media file using ffprobe.
